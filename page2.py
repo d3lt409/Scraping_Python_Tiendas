@@ -4,17 +4,15 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import pandas as pd
 from datetime import date,datetime
-import schedule
+
 from selenium.webdriver.common import by
+from Utils import *
 
-
-USER = 'diegofernandozamoradiaz@gmail.com'
-PASSWORD = 'Juchipuchi123.'
-driver = webdriver.Chrome('chromedriver')
+driver = webdriver.Chrome("./chrome/chromedriver")
 #driver_google = webdriver.Chrome('chromedriver')
 PARTIDOS = {"bask":"inplay-tab-BASK","foot":"inplay-tab-FOOT","tenn":"inplay-tab-TENN","tabl":"inplay-tab-TABL"}
 CAMPEONATOS = "table-row row-wrap"
-NAMEFILE = "wplay.xlsx"
+
 
 def login():
     driver.get("https://apuestas.wplay.co/es")
@@ -216,9 +214,3 @@ def page2Tabl():
         df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
         return df
 
-
-login()
-schedule.every(3).minutes.do(df_to_excel)
-df_to_excel()
-while True:
-    schedule.run_pending()
