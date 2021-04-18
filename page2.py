@@ -1,23 +1,20 @@
 import re
 import time
 from bs4 import BeautifulSoup
+from bs4.element import PageElement
 from selenium import webdriver
 import pandas as pd
-from datetime import date,datetime
-
-from selenium.webdriver.common import by
+from datetime import datetime
+from searchResults import results
 from Utils import *
 
 driver = webdriver.Chrome("./chrome/chromedriver")
-#driver_google = webdriver.Chrome('chromedriver')
 PARTIDOS = {"bask":"inplay-tab-BASK","foot":"inplay-tab-FOOT","tenn":"inplay-tab-TENN","tabl":"inplay-tab-TABL"}
 CAMPEONATOS = "table-row row-wrap"
 
-
 def login():
     driver.get("https://apuestas.wplay.co/es")
-    #driver_google.get("https://www.google.com/search?q=real+madrid+vs+liverpool")
-    time.sleep(2)
+    """time.sleep(2)
     user_driver = driver.find_element_by_xpath("//input[@name='username']")
     passw_driver = driver.find_element_by_xpath("//input[@name='password']")
     login_driver = driver.find_element_by_class_name("log-in")
@@ -31,14 +28,14 @@ def login():
             accept.click()
             break
         except Exception as _:
-            pass
+            pass"""
 
 def df_to_excel():
     foot = page2Foot()
     bask = page2Bask()
     tenn = page2Tenn()
     tabl = page2Tabl()
-    writer = pd.ExcelWriter(NAMEFILE,engine="xlsxwriter")
+    writer = pd.ExcelWriter(NAMEFILE.get(2),engine="xlsxwriter")
     bask.to_excel(writer,index=False,sheet_name="Basketball")
     foot.to_excel(writer,index=False,sheet_name="Football")
     tenn.to_excel(writer,index=False,sheet_name="Tennis")
@@ -46,22 +43,15 @@ def df_to_excel():
     writer.save()
     print("Guardado")
     
-def results(datos:pd.DataFrame):
-    for _,row in datos.iterrows():
-        name1 = row["Nombre 1"]
-        name2 = row["Nombre 2"]
-        driver_google.get(f"https://apuestas.wplay.co/es/search?s={name1}+{name2}")
-        time.sleep(2)
-        
-
+      
 def page2Foot():
     try:
         driver.find_element_by_xpath("//a[@href='#inplay-tab-FOOT']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE,sheet_name="Football")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Football")
             return df_excel
-        except Exception as ex:
+        except Exception as _:
             return pd.DataFrame()
     time.sleep(1)
     soup = BeautifulSoup(driver.page_source,'html5lib')
@@ -73,28 +63,33 @@ def page2Foot():
         try:
             typeName=cam.find('div',attrs={"class":"ev-type-header"})
             nameGruop= typeName.text.strip()
-        except Exception as e:
+        except Exception as _:
             valid = cam.find_all("a",{"class":"multisort-default"})
             if (len(valid)>0):
                 continue
-            timeClock = cam.find("div",{"class":"time"})
-            minutes = timeClock.find("span",{"class":re.compile("clock")})
-            periodo = timeClock.find("span",{"class":"period"})
-            print(minutes.text.strip(),periodo.text.strip())
+            timeClock:PageElement = cam.find("div",{"class":"time"})
+            minutes:PageElement = timeClock.find("span",{"class":re.compile("clock")})
+            period = timeClock.find("span",{"class":"period"})
             name = list(cam.find_all("div",{"class":"team-score"}))
             prices = list(cam.find_all("span",{"class":"price dec"}))
             score = list(cam.find_all("span" ,{"class":re.compile(r"score")}))#"data-team_prop":"score_a","data-team_prop":"score_b"})
-            values.append([name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),name[1].text.strip()[2:],int(score[1].text),float(prices[2].text),float(prices[1].text),nameGruop,datetime.now()])
-
+            if (period.text.strip() != "Segunda Mitad"):
+                periodo = 1
+            else:
+                periodo = 2
+            values.append(
+                [name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),
+                name[1].text.strip()[2:],int(score[1].text),float(prices[2].text),
+                float(prices[1].text),nameGruop,datetime.now(),minutes.text.strip(),
+                periodo,False])
 
     try:
-        df_excel = pd.read_excel(NAMEFILE,sheet_name="Football")
-        df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Empate","Grupo","Fecha de juego"])
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES.get(type))
+        df_values = pd.DataFrame(values,columns=COLUMNAS["foot"])
         df = df_excel.append(df_values)
         return df
-
-    except:
-        df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Empate","Grupo","Fecha de juego"])
+    except Exception as _:
+        df = pd.DataFrame(values,columns=COLUMNAS["foot"])
         print(df)
         return df
 
@@ -103,7 +98,7 @@ def page2Bask():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-BASK']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE,sheet_name="Basketball")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Basketball")
             return df_excel
         except Exception as _:
             return pd.DataFrame()
@@ -128,11 +123,11 @@ def page2Bask():
 
     #print(names,scores,pricesTo)
     try:
-        df_excel = pd.read_excel(NAMEFILE,sheet_name="Basketball")
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Basketball")
         df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
         df = df_excel.append(df_values)
         return df
-    except Exception as e:
+    except Exception as _:
         df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
         return df
 
@@ -141,7 +136,7 @@ def page2Tenn():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TENN']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE,sheet_name="Tennis")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Tennis")
             return df_excel
         except Exception as ex:
             return pd.DataFrame()
@@ -167,7 +162,7 @@ def page2Tenn():
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE,sheet_name="Tennis")
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Tennis")
         df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
         df = df_excel.append(df_values)
         return df
@@ -180,7 +175,7 @@ def page2Tabl():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TABL']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE,sheet_name="Table")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Table")
             return df_excel
         except Exception as ex:
             return pd.DataFrame()
@@ -206,7 +201,7 @@ def page2Tabl():
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE,sheet_name="Table")
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Table")
         df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
         df = df_excel.append(df_values)
         return df
