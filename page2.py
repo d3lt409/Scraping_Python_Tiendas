@@ -103,11 +103,11 @@ def page2Foot():
 def page2Bask():
     try:
         driver.find_element_by_xpath("//a[@href='#inplay-tab-BASK']").click()
-    except Exception as e:
+    except Exception as _:
         try:
             df_excel = pd.read_excel(NAMEFILE,sheet_name="Basketball")
             return df_excel
-        except Exception as ex:
+        except Exception as _:
             return pd.DataFrame()
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
