@@ -5,7 +5,6 @@ from bs4.element import PageElement
 from selenium import webdriver
 import pandas as pd
 from datetime import datetime
-from searchResults import results
 from Utils import *
 
 driver = webdriver.Chrome("./chrome/chromedriver")
@@ -49,10 +48,10 @@ def page2Foot():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-FOOT']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Football")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[2])
             return df_excel
         except Exception as _:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=COLUMNAS["empate"])
     time.sleep(1)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     foot = soup.find("div",{"id":PARTIDOS.get("foot")})
@@ -73,10 +72,10 @@ def page2Foot():
             name = list(cam.find_all("div",{"class":"team-score"}))
             prices = list(cam.find_all("span",{"class":"price dec"}))
             score = list(cam.find_all("span" ,{"class":re.compile(r"score")}))#"data-team_prop":"score_a","data-team_prop":"score_b"})
-            if (period.text.strip() != "Segunda Mitad"):
-                periodo = 1
-            else:
+            if (period.text.strip() == "Segunda Mitad"):
                 periodo = 2
+            else:
+                periodo = 1
             values.append(
                 [name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),
                 name[1].text.strip()[2:],int(score[1].text),float(prices[2].text),
@@ -84,12 +83,12 @@ def page2Foot():
                 periodo,False])
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES.get(type))
-        df_values = pd.DataFrame(values,columns=COLUMNAS["foot"])
+        df_excel = pd.read_excel(NAMEFILE[2],sheet_name=SHEETNAMES[2])
+        df_values = pd.DataFrame(values,columns=COLUMNAS["empate"])
         df = df_excel.append(df_values)
         return df
     except Exception as _:
-        df = pd.DataFrame(values,columns=COLUMNAS["foot"])
+        df = pd.DataFrame(values,columns=COLUMNAS["empate"])
         print(df)
         return df
 
@@ -98,10 +97,10 @@ def page2Bask():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-BASK']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Basketball")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
             return df_excel
         except Exception as _:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     bask = soup.find("div",{"id":PARTIDOS.get("bask")})
@@ -116,30 +115,47 @@ def page2Bask():
             valid = cam.find_all("a",{"class":"multisort-default"})
             if (len(valid)>0):
                 continue
+            timeClock:PageElement = cam.find("div",{"class":"time"})
+            minutes:PageElement = timeClock.find("span",{"class":re.compile("clock")})
+            period = timeClock.find("span",{"class":"period"})
             name = list(cam.find_all("div",{"class":"team-score"}))
             prices = list(cam.find_all("span",{"class":"price dec"}))
             score = list(cam.find_all("span" ,{"class":re.compile(r"score")}))#"data-team_prop":"score_a","data-team_prop":"score_b"})
-            values.append([name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),nameGruop,datetime.now()])
+            if (period.text.strip() != "1º Cuarto"):
+                periodo = 1
+            elif (period.text.strip() != "2º Cuarto"):
+                periodo = 2
+            elif (period.text.strip() != "3º Cuarto"):
+                periodo = 3
+            elif (period.text.strip() != "4º Cuarto"):
+                periodo = 4
+            else:
+                periodo = 0
+            values.append([
+                name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),
+                name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),
+                nameGruop,datetime.now(),minutes.text.strip(),
+                periodo,False])
 
     #print(names,scores,pricesTo)
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Basketball")
-        df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
+        df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
     except Exception as _:
-        df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         return df
 
 def page2Tenn():
     try:
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TENN']").click()
-    except Exception as e:
+    except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Tennis")
+            df_excel = pd.read_excel(NAMEFILE[2],sheet_name=SHEETNAMES[3])
             return df_excel
-        except Exception as ex:
-            return pd.DataFrame()
+        except Exception as _:
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     tenn = soup.find("div",{"id":PARTIDOS.get("tenn")})
@@ -154,20 +170,27 @@ def page2Tenn():
             valid = cam.find_all("a",{"class":"multisort-default"})
             if (len(valid)>0):
                 continue
+            timeClock:PageElement = cam.find("div",{"class":"time"})
+            minutes:PageElement = timeClock.find("span",{"class":re.compile("clock")})
+            period = timeClock.find("span",{"class":"period"})
             name = list(cam.find_all("div",{"class":"team-score"}))
             prices = list(cam.find_all("span",{"class":"price dec"}))
             score = list(cam.find_all("span" ,{"class":re.compile(r"score")}))#"data-team_prop":"score_a","data-team_prop":"score_b"})
-            values.append([name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),nameGruop,datetime.now()])
+            values.append(
+                [name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),
+                name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),
+                nameGruop,datetime.now(),minutes.text.strip(),
+                period.text.strip(),False])
 
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Tennis")
-        df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
+        df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
     except Exception as e:
-        df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         return df
 
 def page2Tabl():
@@ -175,10 +198,10 @@ def page2Tabl():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TABL']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Table")
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
             return df_excel
         except Exception as ex:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     tabl = soup.find("div",{"id":PARTIDOS.get("tabl")})
@@ -193,19 +216,26 @@ def page2Tabl():
             valid = cam.find_all("a",{"class":"multisort-default"})
             if (len(valid)>0):
                 continue
+            timeClock:PageElement = cam.find("div",{"class":"time"})
+            minutes:PageElement = timeClock.find("span",{"class":re.compile("clock")})
+            period = timeClock.find("span",{"class":"period"})
             name = list(cam.find_all("div",{"class":"team-score"}))
             prices = list(cam.find_all("span",{"class":"price dec"}))
             score = list(cam.find_all("span" ,{"class":re.compile(r"score")}))#"data-team_prop":"score_a","data-team_prop":"score_b"})
-            values.append([name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),nameGruop,datetime.now()])
+            values.append(
+                [name[0].text.strip()[2:],int(score[0].text),float(prices[0].text),
+                name[1].text.strip()[2:],int(score[1].text),float(prices[1].text),
+                nameGruop,datetime.now(),minutes.text.strip(),
+                period.text.strip(),False])
      
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name="Table")
-        df_values = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
+        df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
     except Exception as e:
-        df = pd.DataFrame(values,columns=["Nombre 1","Puntaje 1","Precio 1","Nombre 2","Puntaje 2","Precio 2","Grupo","Fecha de juego"])
+        df = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         return df
 
