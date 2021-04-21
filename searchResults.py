@@ -9,7 +9,7 @@ import time
 import random
 
 driver_google = None
-FINAL = {1:"",2:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",3:"tsp-fm"}
+FINAL = {2:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",1:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",3:"tsp-fm"}
 
 def iniciarDriver() -> WebDriver:
     global driver_google
@@ -38,7 +38,7 @@ def puntajesGoogle(type,soup,nombre1=""):
         puntaje1:PageElement = soup.find("div",{"class":"imso_mh__l-tm-sc imso_mh__scr-it imso-light-font"})
         puntaje2:PageElement = soup.find("div",{"class":"imso_mh__r-tm-sc imso_mh__scr-it imso-light-font"})
         return int(puntaje1.text.strip()),int(puntaje2.text.strip())
-    if (type == 3):
+    elif (type == 3):
         ganador:str = soup.find("span",{"class":"tsp-nd tsp-db tsp-el"}).text.strip()
         if (len(newNombre1) > 1):
             if (newNombre1[1] in ganador and ganador.startswith(newNombre1[0][0].upper())):
@@ -64,26 +64,44 @@ def search(df_datos:pd.DataFrame,type,empate:str):
             minutos = row["Tiempo de juego"].split(":")
             name1 = htmlSearch(row[N1])
             name2 = htmlSearch(row[N2])
-            time.sleep(random.random())
+            time.sleep(random.uniform(1,2))
             driver_google.get(f"https://www.google.com/search?client=opera&q={name1}+-+{name2}&sourceid=opera&ie=UTF-8&oe=UTF-8")
             soup = BeautifulSoup(driver_google.page_source,'html5lib')
             try:
-                fin = soup.find("span",{"class":FINAL[type]})
+                if (type == 3):
+                    ten_fin = soup.find("div",{"class":"tsp-sts tsp-pr"})
+                    fin = ten_fin.find("span",{"class":FINAL[type]})
+                else:
+                    fin = soup.find("span",{"class":FINAL[type]})
                 final = fin.text.strip()
             except Exception as _:
-                continue 
+                time.sleep(random.uniform(1,2))
+                try:
+                    driver_google.get(f"https://www.google.com/search?client=opera&q={name1}+vs+{name2}&sourceid=opera&ie=UTF-8&oe=UTF-8") 
+                    soup = BeautifulSoup(driver_google.page_source,'html5lib')
+                    if (type == 3):
+                        ten_fin = soup.find("div",{"class":"tsp-sts tsp-pr"})
+                        fin = ten_fin.find("span",{"class":FINAL[type]})
+                    else:
+                        fin = soup.find("span",{"class":FINAL[type]})
+                    final = fin.text.strip()
+                except Exception as _:
+                    continue
             if (final == 'Finalizado'):
-                puntaje1,puntaje2 = puntajesGoogle(type,soup,name1)
+                try:
+                    puntaje1,puntaje2 = puntajesGoogle(type,soup,row[N1])
+                except Exception as _:
+                    continue
                 min = TIPO[type][0]
                 if (int(minutos[0]) > TIPO[type][1]):
                     min = row["Tiempo de juego"]
                 if(empate == "empate"):
                     values.append(
-                        (row[N1] ,int(puntaje1.text),-1,row["Nombre 2"],int(puntaje2.text), 
+                        (row[N1] ,puntaje1,-1,row["Nombre 2"],puntaje2, 
                         -1,-1,row["Grupo"],row["Fecha de juego"],min,TIPO[type][2],True))
                 else:
                     values.append(
-                        (row[N1] ,int(puntaje1.text),-1,row["Nombre 2"],int(puntaje2.text), 
+                        (row[N1] ,puntaje1,-1,row["Nombre 2"],puntaje2, 
                         -1,row["Grupo"],row["Fecha de juego"],min,TIPO[type][2],True))
     df = pd.DataFrame(values,columns=COLUMNAS[empate])
     return df
@@ -102,6 +120,5 @@ def searhEverySesult():
             df.to_excel(writer,index=False,sheet_name=SHEETNAMES[sheet])
         writer.save()
     driver_google.close()
-
 
 searhEverySesult()

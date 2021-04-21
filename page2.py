@@ -1,6 +1,7 @@
 import re
 import time
 from bs4 import BeautifulSoup
+import bs4
 from bs4.element import PageElement
 from selenium import webdriver
 import pandas as pd
@@ -40,7 +41,8 @@ def df_to_excel():
     tenn.to_excel(writer,index=False,sheet_name="Tennis")
     tabl.to_excel(writer,index=False,sheet_name="Table")
     writer.save()
-    print("Guardado")
+    print(f"Guardado a las {datetime.now()}")
+    driver.refresh()
     
       
 def page2Foot():
@@ -198,7 +200,7 @@ def page2Tabl():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TABL']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[4])
             return df_excel
         except Exception as ex:
             return pd.DataFrame(columns=COLUMNAS["no_empate"])
@@ -231,7 +233,7 @@ def page2Tabl():
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
+        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[4])
         df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
