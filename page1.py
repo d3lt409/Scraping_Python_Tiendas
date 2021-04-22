@@ -4,7 +4,7 @@ from selenium import webdriver
 import pandas as pd
 
 from selenium.webdriver.common.by import By
-driver = webdriver.Chrome('/home/d3lt409/Downloads/Compressed/chromedriver_linux64/chromedriver')
+driver = webdriver.Chrome('chrome/chromedriver')
 driver.get("https://betplay.com.co/apuestas#filter/basketball")
 time.sleep(2)
 expand = driver.find_elements(By.XPATH, value="//div[@class='sc-fzoLag ioxMxx sc-fznWOq kESZxi KambiBC-betty-collapsible KambiBC-collapsible-container KambiBC-mod-event-group-container']")

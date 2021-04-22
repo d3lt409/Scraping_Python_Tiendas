@@ -119,6 +119,3 @@ def searhEverySesult():
         for df,sheet in dfs:
             df.to_excel(writer,index=False,sheet_name=SHEETNAMES[sheet])
         writer.save()
-    driver_google.close()
-
-searhEverySesult()
