@@ -1,6 +1,5 @@
 import page2
 import schedule
-import searchResults
 import time
 
 page2.login()

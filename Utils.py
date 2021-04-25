@@ -6,7 +6,7 @@ N1 = "Nombre 1"
 N2 = "Nombre 2"
 NAMEFILE = {
     2:"wplay.xlsx",
-    #1:'betplay.xlsx'
+    #1:'codere.xlsx'
     }
 SHEETNAMES = {1:"Basketball",2:"Football",3:"Tennis",4:"Table"}
 COLUMNAS = {
