@@ -40,10 +40,13 @@ def df_to_excel():
     tenn.to_excel(writer,index=False,sheet_name="Tennis")
     tabl.to_excel(writer,index=False,sheet_name="Table")
     writer.save()
-    print(f"Guardado a las {datetime.now()}")
+    print(f"Guardado a las {datetime.now()} para {NAMEFILE[2]}")
     driver.refresh()
     
-      
+def runPage():
+    login()
+    df_to_excel()
+
 def page2Foot():
     try:
         driver.find_element_by_xpath("//a[@href='#inplay-tab-FOOT']").click()

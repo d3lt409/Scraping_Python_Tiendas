@@ -24,15 +24,15 @@ def relog():
 def df_to_excel():
     foot = football()
     bask = basket()
-    # tenn = page2Tenn()
-    # tabl = page2Tabl()
+    tenn = tennis()
+    tabl = table()
     writer = pd.ExcelWriter(NAMEFILE.get(1),engine="xlsxwriter")
     bask.to_excel(writer,index=False,sheet_name="Basketball")
     foot.to_excel(writer,index=False,sheet_name="Football")
-    # tenn.to_excel(writer,index=False,sheet_name="Tennis")
-    # tabl.to_excel(writer,index=False,sheet_name="Table")
+    tenn.to_excel(writer,index=False,sheet_name="Tennis")
+    tabl.to_excel(writer,index=False,sheet_name="Table")
     writer.save()
-    print(f"Guardado a las {datetime.now()}")
+    print(f"Guardado a las {datetime.now()} para {NAMEFILE[1]}")
     driver.refresh()
 
 def basket():
@@ -162,7 +162,7 @@ def table():
             nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
             tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
             puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
-            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-3-groups is-wrap has-two-buttons"})
+            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-2-groups is-wrap has-two-buttons"})
             try:
                 apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
             except Exception as _:
@@ -186,7 +186,7 @@ def table():
                     minutos,periodo,False)
                     )
     try:
-        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[1])
+        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[4])
         df_values = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
@@ -247,7 +247,6 @@ def tennis():
         print(df)
         return df
 
-relog()
-# df_to_excel()
-
-print(tennis())
+def runPage():
+    relog()
+    df_to_excel()
