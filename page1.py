@@ -53,7 +53,7 @@ def basket():
         teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
         for team in teams:
             nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
-            tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
+            tiempo = team.find("p",{"class":re.compile("sb-grid-item--subtitle color-accent")})
             puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
             list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-3-groups is-wrap has-two-buttons"})
             try:
@@ -63,7 +63,7 @@ def basket():
 
             periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
             minutos = minutos.replace("< ","")
-
+            if (len(minutos) == 0): minutos = '00:00'
             if(len(apuestas) == 0):
                 vs.append(
                     (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
@@ -107,16 +107,18 @@ def football():
         teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
         for team in teams:
             nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
-            tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
+            tiempo = team.find("p",{"class":re.compile("sb-grid-item--subtitle color-accent")})
             puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
             list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-2-groups is-wrap has-three-buttons"})
             try:
                 apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
             except Exception as _:
                 apuestas = []
-
+            print(tiempo)
             periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
-
+            minutos = minutos.replace("'","")
+            if(len(minutos) == 0): minutos = "00:00"
+            else: minutos = f"{minutos}:00"
             if(len(apuestas) == 0):
                 vs.append(
                     (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
@@ -160,7 +162,7 @@ def table():
         teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
         for team in teams:
             nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
-            tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
+            tiempo = team.find("p",{"class":re.compile("sb-grid-item--subtitle color-accent")})
             puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
             list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-2-groups is-wrap has-two-buttons"})
             try:
@@ -168,8 +170,8 @@ def table():
             except Exception as _:
                 apuestas = []
 
-            periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
-            minutos = minutos.replace("< ","")
+            periodo = tiempo.text.split("\n")[1].strip()
+            minutos = '00:00'
 
             if(len(apuestas) == 0):
                 vs.append(
@@ -228,14 +230,14 @@ def tennis():
                     (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
                     nombres[1].text.strip(),puntajes[1].text.strip(),-1000,
                     nombre_grupo.text.strip(),datetime.now(),
-                    None,periodo,False)
+                    '00:00',periodo,False)
                     )
             else:
                 vs.append(
                     (nombres[0].text.strip(),puntajes[0].text.strip(),apuestas[0].text.strip(),
                     nombres[1].text.strip(),puntajes[1].text.strip(),apuestas[1].text.strip(),
                     nombre_grupo.text.strip(),datetime.now(),
-                    None,periodo,False)
+                    "00:00",periodo,False)
                     )
     try:
         df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[3])
@@ -250,3 +252,5 @@ def tennis():
 def runPage():
     relog()
     df_to_excel()
+
+runPage()

@@ -7,6 +7,7 @@ from Utils import *
 import re
 import time
 import random
+from datetime import datetime
 
 driver_google = None
 FINAL = {2:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",1:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",3:"tsp-fm"}
@@ -119,3 +120,6 @@ def searhEverySesult():
         for df,sheet in dfs:
             df.to_excel(writer,index=False,sheet_name=SHEETNAMES[sheet])
         writer.save()
+        print(f"Guardado a las {datetime.now()} para {NAMEFILE[page]}")
+
+searhEverySesult()
