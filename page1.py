@@ -1,72 +1,253 @@
 from datetime import datetime
-from os import close
 import time
 from bs4 import BeautifulSoup
 import bs4
-from selenium.webdriver.remote.webelement import WebElement
+from selenium import webdriver
 import pandas as pd
-from selenium.webdriver.common.by import By
 from Utils import *
 import re
-from typing import List
 
 driver = webdriver.Chrome('chrome/chromedriver')
-driver.get("https://m.codere.com.co/deportescolombia/#/DirectosPage")
-time.sleep(4)
-while True:
-    try:
-        driver.find_element_by_xpath("//button[@class='alert-button alert-button-md alert-button-default alert-button-default-md']").click()
-        break
-    except Exception as _:
-        continue
 
+def relog():
+    driver.get("https://m.codere.com.co/deportescolombia/#/DirectosPage")
+    time.sleep(5)
+    while True:
+        try:
+            driver.find_element_by_xpath("//button[@class='alert-button alert-button-md alert-button-default alert-button-default-md']").click()
+            driver.refresh()
+            time.sleep(5)
+            break
+        except Exception as _:
+            return
 
-def tennis():
+def df_to_excel():
+    foot = football()
+    bask = basket()
+    # tenn = page2Tenn()
+    # tabl = page2Tabl()
+    writer = pd.ExcelWriter(NAMEFILE.get(1),engine="xlsxwriter")
+    bask.to_excel(writer,index=False,sheet_name="Basketball")
+    foot.to_excel(writer,index=False,sheet_name="Football")
+    # tenn.to_excel(writer,index=False,sheet_name="Tennis")
+    # tabl.to_excel(writer,index=False,sheet_name="Table")
+    writer.save()
+    print(f"Guardado a las {datetime.now()}")
+    driver.refresh()
+
+def basket():
     try:
-        driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-tennis']").click()
+        driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-basketball']").click()
     except Exception as e:
-        print(e)
-        return
+        try:
+            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[1])
+            return df_excel
+        except Exception as _:
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
     time.sleep(1)
     soup = BeautifulSoup(driver.page_source,'html5lib')
-    tenn:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":"sb-dropdown is-collapsable is-open"})
-    for ten in tenn:
-        nombre_grupo = ten.find("p",{"class":"sb-dropdown--title"})
-        tenn = soup.find("div",{"class":"sc-fzoLag frpOCq sc-fznWOq kELbTZ KambiBC-betty-collapsible KambiBC-collapsible-container KambiBC-mod-event-group-container KambiBC-expanded"})
+    foots:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":re.compile("sb-dropdown is-collapsable")})
+    vs = []
+    for foot in foots:
+        nombre_grupo = foot.find("p",{"class":"sb-dropdown--title"})
+        teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
+        for team in teams:
+            nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
+            tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
+            puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
+            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-3-groups is-wrap has-two-buttons"})
+            try:
+                apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
+            except Exception as _:
+                apuestas = []
+
+            periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
+            minutos = minutos.replace("< ","")
+
+            if(len(apuestas) == 0):
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
+                    nombres[1].text.strip(),puntajes[1].text.strip(),-1000,
+                    nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+            else:
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),apuestas[0].text.strip(),
+                    nombres[1].text.strip(),puntajes[1].text.strip(),apuestas[1].text.strip(),
+                    nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+    try:
+        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[1])
+        df_values = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        df = df_excel.append(df_values)
+        return df
+    except Exception as _:
+        df = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        print(df)
+        return df
 
 def football():
     time.sleep(2)
     try:
         driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-soccer']").click()
-    except Exception as e:
-        print(e)
-        return
+    except Exception as _:
+        try:
+            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[2])
+            return df_excel
+        except Exception as _:
+            return pd.DataFrame(columns=COLUMNAS["empate"])
     time.sleep(1)
-    open_all = List[WebElement]()
-    open_all = driver.find_elements_by_xpath("//sb-dropdown[@class='sb-dropdown is-collapsable']")
-    for op in open_all:
-        op1:WebElement = op
-        op1.find_element_by_class("sb-dropdown--header background-color-regular color-dark").click()
     soup = BeautifulSoup(driver.page_source,'html5lib')
-    foots:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":"sb-dropdown is-collapsable is-open"})
+    foots:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":re.compile("sb-dropdown is-collapsable")})
     vs = []
     for foot in foots:
         nombre_grupo = foot.find("p",{"class":"sb-dropdown--title"})
-        teams = foot.find_all("div",{"class":"sb-grid-item sb-grid-content--teams"})
-        print("\n-------------------------------------------")
-        print(nombre_grupo)
+        teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
         for team in teams:
             nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
             tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
-            puntajes = team.find_all("p",{"class","sb-grid-item--number color-accent"})
-            apuestas = team.find_all("p",{"class","sb-button--subtitle color-dark"})
-            print(nombres)
-            print("-------------")
-            print(tiempo)
-            print("-------------")
-            print(puntajes)
-            print("-------------")
-            print(apuestas)
-            print("-------------\n")
+            puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
+            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-2-groups is-wrap has-three-buttons"})
+            try:
+                apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
+            except Exception as _:
+                apuestas = []
+
+            periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
+
+            if(len(apuestas) == 0):
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
+                    nombres[1].text.strip(),puntajes[1].text.strip(),-1000,
+                    -1000,nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+            else:
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),apuestas[0].text.strip(),
+                    nombres[1].text.strip(),puntajes[1].text.strip(),apuestas[2].text.strip(),
+                    apuestas[1].text.strip(),nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+    try:
+        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[2])
+        df_values = pd.DataFrame(vs,columns=COLUMNAS["empate"])
+        df = df_excel.append(df_values)
+        return df
+    except Exception as _:
+        df = pd.DataFrame(vs,columns=COLUMNAS["empate"])
+        print(df)
+        return df
         
-football()
+def table():
+    try:
+        driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-table_tennis']").click()
+    except Exception as _:
+        try:
+            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[4])
+            return df_excel
+        except Exception as e:
+            print(e)
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
+    time.sleep(1)
+    soup = BeautifulSoup(driver.page_source,'html5lib')
+    foots:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":re.compile("sb-dropdown is-collapsable")})
+    vs = []
+    for foot in foots:
+        nombre_grupo = foot.find("p",{"class":"sb-dropdown--title"})
+        teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
+        for team in teams:
+            nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
+            tiempo = team.find("p",{"class":"sb-grid-item--subtitle color-accent"})
+            puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
+            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-3-groups is-wrap has-two-buttons"})
+            try:
+                apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
+            except Exception as _:
+                apuestas = []
+
+            periodo,minutos = tiempo.text.split("\n")[1].strip(),tiempo.text.split("\n")[2].strip()
+            minutos = minutos.replace("< ","")
+
+            if(len(apuestas) == 0):
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
+                    nombres[1].text.strip(),puntajes[1].text.strip(),-1000,
+                    nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+            else:
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),apuestas[0].text.strip(),
+                    nombres[1].text.strip(),puntajes[1].text.strip(),apuestas[1].text.strip(),
+                    nombre_grupo.text.strip(),datetime.now(),
+                    minutos,periodo,False)
+                    )
+    try:
+        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[1])
+        df_values = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        df = df_excel.append(df_values)
+        return df
+    except Exception as _:
+        df = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        print(df)
+        return df
+
+def tennis():
+    try:
+        driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-tennis']").click()
+    except Exception as _:
+        try:
+            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[3])
+            return df_excel
+        except Exception as e:
+            print(e)
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
+    time.sleep(1)
+    soup = BeautifulSoup(driver.page_source,'html5lib')
+    foots:bs4.element.ResultSet = soup.find_all("sb-dropdown",{"class":re.compile("sb-dropdown is-collapsable")})
+    vs = []
+    for foot in foots:
+        nombre_grupo = foot.find("p",{"class":"sb-dropdown--title"})
+        teams = foot.find_all("sb-grid-item",{"class":"sb-grid-item sb-grid-content--teams"})
+        for team in teams:
+            nombres = list(team.find_all("p",{"class":"sb-grid-item--title color-dark"}))
+            tiempo = team.find("p",{"class":re.compile("sb-grid-item--subtitle color-accent")})
+            puntajes = list(team.find_all("p",{"class","sb-grid-item--number color-accent"}))
+            list_apuestas = team.find("div",{"class":"sb-grid-item--bets-group has-2-groups is-wrap has-two-buttons"})
+            try:
+                apuestas = list(list_apuestas.find_all("p",{"class","sb-button--subtitle color-dark"}))
+            except Exception as _:
+                apuestas = []
+            periodo = tiempo.text.strip()
+
+            if(len(apuestas) == 0):
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),-1000,
+                    nombres[1].text.strip(),puntajes[1].text.strip(),-1000,
+                    nombre_grupo.text.strip(),datetime.now(),
+                    None,periodo,False)
+                    )
+            else:
+                vs.append(
+                    (nombres[0].text.strip(),puntajes[0].text.strip(),apuestas[0].text.strip(),
+                    nombres[1].text.strip(),puntajes[1].text.strip(),apuestas[1].text.strip(),
+                    nombre_grupo.text.strip(),datetime.now(),
+                    None,periodo,False)
+                    )
+    try:
+        df_excel = pd.read_excel(NAMEFILE[1],sheet_name=SHEETNAMES[3])
+        df_values = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        df = df_excel.append(df_values)
+        return df
+    except Exception as _:
+        df = pd.DataFrame(vs,columns=COLUMNAS["no_empate"])
+        print(df)
+        return df
+
+relog()
+# df_to_excel()
+
+print(tennis())

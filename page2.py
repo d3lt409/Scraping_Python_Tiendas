@@ -1,7 +1,6 @@
 import re
 import time
 from bs4 import BeautifulSoup
-import bs4
 from bs4.element import PageElement
 from selenium import webdriver
 import pandas as pd
