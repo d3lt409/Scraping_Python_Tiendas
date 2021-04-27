@@ -10,7 +10,7 @@ PR1 = "Precio 1"
 PR2 = "Precio 2"
 
 NAMEFILE = {
-    #2:"wplay.xlsx",
+    2:"wplay.xlsx",
     1:'codere.xlsx'
     }
 

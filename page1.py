@@ -252,5 +252,3 @@ def tennis():
 def runPage():
     relog()
     df_to_excel()
-
-runPage()

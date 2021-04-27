@@ -108,7 +108,19 @@ def page2Bask():
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     bask = soup.find("div",{"id":PARTIDOS.get("bask")})
-    campeonatos = bask.find_all("div",{"class":re.compile(CAMPEONATOS)})
+    try:
+        campeonatos = bask.find_all("div",{"class":re.compile(CAMPEONATOS)})
+    except Exception as e:
+        print(e)
+        time.sleep(1)
+        campeonatos = bask.find_all("div",{"class":re.compile(CAMPEONATOS)})
+        print(type(campeonatos))
+        try:
+            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
+            return df_excel
+        except Exception as _:
+            return pd.DataFrame(columns=COLUMNAS["no_empate"])
+            
     nameGruop="None"
     values = []
     for cam in campeonatos:
