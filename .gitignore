@@ -4,3 +4,4 @@ chromedriver.exe
 chrome/chromedriver
 .~lock.wplay.xlsx#
 codere.xlsx
+chrome/geckodriver
