@@ -1,6 +1,7 @@
 from sys import exit
 from tkinter import Tk,StringVar,Canvas,Label,Button
 from os import system
+import platform
 
 class shutdown:
 
@@ -57,10 +58,15 @@ class shutdown:
 
 
 def shutdown_pc ():
-    system("shutdown /s /t 10 /c 'Trate de cerrar todo, tiene 10 segundos'")
-    exit()
+    sistema = platform.system()
+    if sistema == "Windows":
+        system("""shutdown /s /t 10 /c "Trate de cerrar todo, tiene 10 segundos" """)
+        exit()
+    else:
+        system("""shutdown -P +1 "Trate de cerrar todo, tiene 60 segundos" """)
+        exit()
 
 def no_shutdown_pc ():
     exit()
-
+    
 shutdown()
