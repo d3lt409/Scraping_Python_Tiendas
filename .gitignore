@@ -5,3 +5,7 @@ chrome/chromedriver
 .~lock.wplay.xlsx#
 codere.xlsx
 chrome/geckodriver
+*.tar.gz
+*.TIF
+*.geojson
+LC08_*.txt

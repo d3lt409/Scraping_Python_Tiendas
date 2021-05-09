@@ -39,11 +39,11 @@ def exportSecenes(lat,lon):
         print(scene['acquisition_date'])
         polygon:Polygon = scene['spatial_coverage']
         # Write scene footprints to disk
-        fname = f"lansat/lansat_data/{scene['landsat_product_id']}.geojson"
+        fname = f"landsat/landsat_data/{scene['landsat_product_id']}.geojson"
         with open(fname, "w") as f:
             geojson.dump(polygon,f)
         
-        ee.download(scene["landsat_scene_id"], output_dir='./lansat/lansat_data')
+        ee.download(scene["landsat_scene_id"], output_dir='./landsat/landsat_data')
         ee.logout()
 
 def logout():
