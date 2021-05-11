@@ -9,3 +9,4 @@ chrome/geckodriver
 *.TIF
 *.geojson
 LC08_*.txt
+.vscode/settings.json
