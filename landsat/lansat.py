@@ -50,19 +50,19 @@ def logout():
     api.logout()
     sys.exit()
 
-login()
-exportSecenes(4.6482422,-74.3880256)
+# login()
+# exportSecenes(4.6482422,-74.3880256)
 
-# PATH_DATOS = "lansat/lansat_data/datos"
-# datos = os.listdir(PATH_DATOS)
+PATH_DATOS = "landsat/landsat_data/datos"
+datos = os.listdir(PATH_DATOS)
 
-# images = [val for val in datos if val.endswith(".TIF")]
-# df = {}
-# for val in images:
-#     m = re.search('B[\w]+', val)
-#     df[m.group(0)] = val 
+images = [val for val in datos if val.endswith(".TIF")]
+df = {}
+for val in images:
+    m = re.search('B[\w]+', val)
+    df[m.group(0)] = val 
 
-# band4:DatasetReader = rasterio.open(f"{PATH_DATOS}/{df['B4']}")
-# band5:DatasetReader = rasterio.open(f"{PATH_DATOS}/{df['B5']}")
-# plot.show(band4)
-# plot.show(band5)
+band4:DatasetReader = rasterio.open(f"{PATH_DATOS}/{df['B4']}")
+band5:DatasetReader = rasterio.open(f"{PATH_DATOS}/{df['B5']}")
+plot.show(band4)
+plot.show(band5)
