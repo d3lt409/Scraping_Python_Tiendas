@@ -22,6 +22,12 @@ def relog():
             return
 
 def df_to_excel():
+    try:
+        driver.find_element_by_xpath("//button[@class='alert-button alert-button-md alert-button-default alert-button-default-md']").click()
+        driver.get("https://m.codere.com.co/deportescolombia/#/DirectosPage")
+        time.sleep(4)
+    except Exception as _:
+        pass
     foot = football()
     bask = basket()
     tenn = tennis()
@@ -252,3 +258,5 @@ def tennis():
 def runPage():
     relog()
     df_to_excel()
+
+runPage()

@@ -1,5 +1,4 @@
-wplay.xlsx
-wplay2.xlsx
+*.xlsx
 chromedriver.exe
 chrome/chromedriver
 .~lock.wplay.xlsx#

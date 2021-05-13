@@ -3,6 +3,7 @@ import sys
 import time
 from bs4 import BeautifulSoup
 import bs4
+from bs4 import element
 from bs4.element import PageElement, ResultSet
 from selenium import webdriver
 import pandas as pd
@@ -13,7 +14,6 @@ from selenium.webdriver.remote.webelement import WebElement
 
 def categoria_promo(valor:str):
     cat = re.search("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional",valor)
-    print(cat)
     cat = cat.group(0)
     cat = re.search("categorias_rebajon-[\w]+(-[\w]+)+",cat)
     cat = cat.group(0)
@@ -26,10 +26,21 @@ def organizar_articulos(page,cat = None):
     products = []
     for des in page:
         des:PageElement
+        
         item = list(des.find_all("h2",{"class":"elementor-heading-title elementor-size-default"}))
-        sep = item[1].text.split(" DE ")
+        if (str(item[len(item)-1]).__contains__("PROHÍBASE EL EXPENDIO DE BEBIDAS")):
+            item.pop(len(item)-1)
+            
+        sep = str(item[1].text).split(" X ")
         if (len(sep) <= 1 ):
-            sep = item[1].text.split(" X ")  
+            sep = str(item[1].text).split(" DE ")
+        if (len(sep) > 2):
+            newSep = sep[:len(sep)-1]
+            new_name = ""
+            for s in newSep:
+                new_name+=s
+            sep = [new_name]+[sep[len(sep)-1]]
+
         if (cat):
             if (len(item) == 6):
                 products.append((sep[0],sep[1][:len(sep[1])-1],item[2].text.strip(),item[3].text.strip(),item[5].text.strip(),cat,True))
@@ -72,11 +83,12 @@ for v in val:
             element.click()
             break
         except Exception as e:
-            print(e)
-            time.sleep(1)
+            driver.fullscreen_window()
+            driver.execute_script(f"window.scrollTo(0, {driver.get_window_position()['y']-100});")
             continue
     
-    cat = v.find_element_by_xpath("//div").text
+    cat = v.find_elements_by_tag_name("div")
+    cat = cat[len(cat)-1].text
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source,'html5lib')
     articles = soup.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional")})
@@ -86,9 +98,10 @@ for v in val:
             element.click()
             break
         except Exception as e:
-            print(e)
-            time.sleep(1)
+            driver.fullscreen_window()
+            driver.execute_script(f"window.scrollTo(0, {driver.get_window_position()['y']-100});")
             continue
 
-df = pd.DataFrame(productos,columns=["Nombre producto","Cantidad","Precio promoción","Cantidad por producto","precio normal","Categoria","Mejor promoción"])
-print(df)
+df = pd.DataFrame(productos)#columns=["Nombre producto","Cantidad","Precio promoción","Cantidad por producto","precio normal","Categoria","Mejor promoción"])
+df.to_excel("ara.xlsx",engine = 'xlsxwriter',index=False)
+driver.close()
