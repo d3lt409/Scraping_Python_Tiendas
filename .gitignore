@@ -9,3 +9,5 @@ chrome/geckodriver
 *.geojson
 LC08_*.txt
 .vscode/settings.json
+prueb*.py
+prueba.py

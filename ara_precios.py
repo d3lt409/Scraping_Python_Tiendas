@@ -22,6 +22,34 @@ def categoria_promo(valor:str):
     cat = cat.capitalize()
     return cat
 
+def nombre_cantidad(valor:str):
+    valor = valor.replace(".","")
+    cant = re.search("( (X|DE) (\d)+ (G|ML|M|CM|UN)(.*))|( (DE|X) \d+ X \d+ (G|ML|M|CM|UN)(.*))|(\(\d+ (G|ML|M|CM|UN)\))",valor)
+    print(valor)
+    if (cant):
+        valor = valor.replace(cant.group(0),"")
+        cant = cant.group(0).strip()
+        if (cant.startswith("DE")):
+            print(cant)
+            cant = cant[3:]
+            cant_uni = re.search("^\d+ (G|ML|M|CM|UN)|\d+ X \d+ (G|ML|M|CM|UN)",cant)
+            adi = cant.replace(cant_uni.group(0),"").strip()
+            cant_uni = cant_uni.group(0).split()
+            return [valor,cant_uni[0],cant_uni[1],adi]
+        elif (cant.startswith("X")):
+            print(cant)
+            cant = cant[2:]
+            cant_uni = re.search("^\d+ (G|ML|M|CM|UN)|\d+ X \d+ (G|ML|M|CM|UN)",cant)
+            adi = cant.replace(cant_uni.group(0),"").strip()
+            cant_uni = cant_uni.group(0).split()
+            return [valor,cant_uni[0],cant_uni[1],adi]
+        else:
+            cant = cant.replace("(","").replace(")","")
+            cant_uni = cant.split()
+            return [valor,cant_uni[0],cant_uni[1],""]
+    else:
+        return [valor,1, "UN",""]
+
 def organizar_articulos(page,cat = None):
     products = []
     for des in page:
@@ -30,24 +58,15 @@ def organizar_articulos(page,cat = None):
         item = list(des.find_all("h2",{"class":"elementor-heading-title elementor-size-default"}))
         if (str(item[len(item)-1]).__contains__("PROHÍBASE EL EXPENDIO DE BEBIDAS")):
             item.pop(len(item)-1)
-            
-        sep = str(item[1].text).split(" X ")
-        if (len(sep) <= 1 ):
-            sep = str(item[1].text).split(" DE ")
-        if (len(sep) > 2):
-            newSep = sep[:len(sep)-1]
-            new_name = ""
-            for s in newSep:
-                new_name+=s
-            sep = [new_name]+[sep[len(sep)-1]]
-
+        sep = nombre_cantidad(item[1].text.strip())
+        print(sep)
         if (cat):
             if (len(item) == 6):
-                products.append((sep[0],sep[1][:len(sep[1])-1],item[2].text.strip(),item[3].text.strip(),item[5].text.strip(),cat,True))
+                products.append((sep[0],sep[1],sep[2],sep[3],item[2].text.strip(),item[3].text.strip(),item[5].text.strip(),cat,True))
             elif (len(item) == 5):
-                products.append((sep[0],sep[1][:len(sep[1])-1],item[2].text.strip(),item[4].text.strip(),cat,False))
+                products.append((sep[0],sep[1],sep[2],sep[3],item[2].text.strip(),item[4].text.strip(),cat,False))
             elif (len(item) == 4):
-                products.append((sep[0],sep[1][:len(sep[1])-1],item[2].text.strip(),None,item[3].text.strip(),cat,False))
+                products.append((sep[0],sep[1],sep[2],sep[3],item[2].text.strip(),None,item[3].text.strip(),cat,False))
             else:
                 print("--------------------------NO pasó compa :c -----------------------------------------------------------")
                 print(item)
