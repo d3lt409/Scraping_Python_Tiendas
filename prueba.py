@@ -1,5 +1,9 @@
+from os import PRIO_PGRP
 import re
+from time import process_time
 
-valor = re.search("( (X|DE) (\d)+ (G|ML|M|CM|UN)(.*))|( (DE|X) \d+ X \d+ (G|ML|M|CM|UN)(.*))|(\(\d+ (G|ML|M|CM|UN)\))","MANGUERA ESPIRAL DE 10 M.")
-if (valor):
-    print(valor.group(0).strip())
+lista = [2,3,4,5,6,3]
+val = int(len(lista)/2)
+print(val)
+lista = lista[:val]
+print(lista)
