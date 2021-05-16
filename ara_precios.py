@@ -1,4 +1,4 @@
-from os import PRIO_PGRP
+from os import replace
 import time
 from bs4 import BeautifulSoup
 from bs4 import element
@@ -11,9 +11,6 @@ from selenium.webdriver.remote.webelement import WebElement
 
 
 URL = 'https://aratiendas.com/inicio/centro/'
-
-def document_initialised(driver):
-    return driver.execute_script("return initialised")
 
 def categoria_promo(valor:str):
     cat = re.search("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional",valor)
@@ -63,6 +60,13 @@ def nombre_cantidad(valor:str):
     else:
         return [valor,1, "UN",""]
 
+def form_precio_unitario(valor:str):
+    exp = re.search("\d+(\,\d+)+",valor).group(0)
+    return float(exp.replace(",","."))
+def form_precio_referencia(valor:str):
+    exp = valor.replace("$","").replace(".","").strip()
+    return exp
+
 def organizar_articulos(page,cat = None):
     products = []
     for des in page:
@@ -75,11 +79,14 @@ def organizar_articulos(page,cat = None):
         precio = item[2].text.replace(".","").replace("$","").strip()
         if (cat):
             if (len(item) == 6):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,item[3].text.strip(),item[4].text.strip(),item[5].text.strip(),cat,True))
+                prec_uni = form_precio_unitario(item[3].text.strip())
+                prec_ref = form_precio_referencia(item[5].text.strip()) 
+                products.append((sep[0],sep[1],sep[2],sep[3],precio,prec_uni,prec_ref,cat,True))
             elif (len(item) == 5):
                 products.append((sep[0],sep[1],sep[2],sep[3],precio,item[3].text.strip(),item[4].text.strip(),cat,False))
             elif (len(item) == 4):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,None,item[3].text.strip(),cat,False))
+                prec_uni = form_precio_unitario(item[3].text.strip())
+                products.append((sep[0],sep[1],sep[2],sep[3],precio,precio_uni,None,cat,True))
             else:
                 print("--------------------------NO pasó compa :c -----------------------------------------------------------")
                 print(item)
@@ -116,7 +123,6 @@ for v in val:
     time.sleep(3)
     xpath_pages = "//div[@id='rebajon-content-box']/div/nav/div"
     pages:list = driver.find_elements_by_xpath(xpath_pages)
-    print("Tamaño de paginas", len(pages))
     for i in range(len(pages)):
         ele = driver.find_element_by_css_selector(f"#rebajon-content-box > div > nav > div:nth-child({i+1})")
         driver.execute_script("arguments[0].click();", ele)
@@ -130,6 +136,6 @@ for v in val:
     driver.execute_script("arguments[0].click();", element)
     time.sleep(3)
 
-df = pd.DataFrame(productos)#columns=["Nombre producto","Cantidad","Precio promoción","Cantidad por producto","precio normal","Categoria","Mejor promoción"])
+df = pd.DataFrame(productos)#columns=["Nombre producto","Cantidad","Unidad","Adicional","Precio promoción","Precio por unidad","precio Referencia","Categoria","Mejor promoción"])
 df.to_excel("ara.xlsx",engine = 'xlsxwriter',index=False)
 driver.close()
