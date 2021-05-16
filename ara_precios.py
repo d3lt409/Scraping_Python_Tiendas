@@ -1,4 +1,4 @@
-from os import replace
+from datetime import date, datetime
 import time
 from bs4 import BeautifulSoup
 from bs4 import element
@@ -13,9 +13,9 @@ from selenium.webdriver.remote.webelement import WebElement
 URL = 'https://aratiendas.com/inicio/centro/'
 
 def categoria_promo(valor:str):
-    cat = re.search("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional",valor)
+    cat = re.search("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)* zonas_rebajon-nacional",valor)
     cat = cat.group(0)
-    cat = re.search("categorias_rebajon-[\w]+(-[\w]+)+",cat)
+    cat = re.search("categorias_rebajon-[\w]+(-[\w]+)*",cat)
     cat = cat.group(0)
     cat = cat.replace("categorias_rebajon-","")
     cat = cat.replace("-"," ")
@@ -61,54 +61,64 @@ def nombre_cantidad(valor:str):
         return [valor,1, "UN",""]
 
 def form_precio_unitario(valor:str):
-    exp = re.search("\d+(\,\d+)+",valor).group(0)
+    exp = re.search("\d+(\,\d+)+",valor)
+    exp = exp.group(0)
+    prec = exp.split(",")
+    if (len(prec) > 2 ):
+        precio = ""
+        for i in range(len(prec)-1):
+            precio+=prec[i]
+        precio += f".{precio[len(prec)-1]}"
+        return float(precio)
     return float(exp.replace(",","."))
+
 def form_precio_referencia(valor:str):
     exp = valor.replace("$","").replace(".","").strip()
     return exp
 
-def organizar_articulos(page,cat = None):
+def precio_promo(valor:str):
+    exp = re.search("\d+(\.\d+)+",valor).group(0)
+    return exp.replace(".","")
+
+def organizar_articulos(page,cat,destacado):
     products = []
     for des in page:
         des:PageElement
-        
-        item = list(des.find_all("h2",{"class":"elementor-heading-title elementor-size-default"}))
+        if (destacado):
+            cat = categoria_promo(str(des))
+        item = list(des.find_all("h2"))
+        for it in item:
+            if (it.text == ""):
+                item.remove(it)
         if (str(item[len(item)-1]).__contains__("PROHÍBASE EL EXPENDIO DE BEBIDAS")):
             item.pop(len(item)-1)
+
         sep = nombre_cantidad(item[1].text.strip())
-        precio = item[2].text.replace(".","").replace("$","").strip()
-        if (cat):
-            if (len(item) == 6):
-                prec_uni = form_precio_unitario(item[3].text.strip())
-                prec_ref = form_precio_referencia(item[5].text.strip()) 
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,prec_uni,prec_ref,cat,True))
-            elif (len(item) == 5):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,item[3].text.strip(),item[4].text.strip(),cat,False))
-            elif (len(item) == 4):
-                prec_uni = form_precio_unitario(item[3].text.strip())
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,precio_uni,None,cat,True))
-            else:
-                print("--------------------------NO pasó compa :c -----------------------------------------------------------")
-                print(item)
-                print(len(item))
+        precio = precio_promo(item[2].text.strip())
+
+        if (len(item) == 6):
+            prec_uni = form_precio_unitario(item[3].text.strip())
+            prec_ref = form_precio_referencia(item[5].text.strip()) 
+            products.append((sep[0],sep[1],sep[2],sep[3],precio,prec_uni,prec_ref,cat,destacado,datetime.now()))
+        elif (len(item) == 5):
+            prec_ref = form_precio_referencia(item[4].text.strip()) 
+            products.append((sep[0],sep[1],sep[2],sep[3],precio,None,prec_ref,cat,destacado,datetime.now()))
+        elif (len(item) == 4):
+            prec_uni = form_precio_unitario(item[3].text.strip())
+            products.append((sep[0],sep[1],sep[2],sep[3],precio,prec_uni,None,cat,destacado,datetime.now()))
+        elif (len(item)== 3):
+            products.append((sep[0],sep[1],sep[2],sep[3],precio,None,None,cat,destacado,datetime.now()))
         else:
-            cat = categoria_promo(str(des))
-            if (len(item) == 4):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,None,item[3].text.strip(),cat,False))
-            if (len(item) == 6):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,item[3].text.strip(),item[5].text.strip(),cat,True))
-            elif (len(item) == 5):
-                products.append((sep[0],sep[1],sep[2],sep[3],precio,None,item[4].text.strip(),cat,True))
-            else:
-                print("--------------------------NO pasó compa :c -----------------------------------------------------------")
-                print(item)
+            print("--------------------------NO pasó compa :c -----------------------------------------------------------")
+            print(item)
+
     return products
 
 def articulos_destacados():
 
     soup = BeautifulSoup(driver.page_source,'html5lib')
-    destacados = soup.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional")})
-    productos = organizar_articulos(destacados)
+    destacados = soup.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)* zonas_rebajon-nacional")})
+    productos = organizar_articulos(destacados,None,True)
     return productos
 
 driver = webdriver.Chrome('chrome/chromedriver')
@@ -132,10 +142,10 @@ for v in val:
         soup = BeautifulSoup(driver.page_source,'html5lib')
         content = soup.find("div",{"id":"rebajon-content-box"})
         articles = content.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional")})
-        productos+=organizar_articulos(articles,cat)
+        productos+=organizar_articulos(articles,cat,False)
     driver.execute_script("arguments[0].click();", element)
     time.sleep(3)
 
-df = pd.DataFrame(productos)#columns=["Nombre producto","Cantidad","Unidad","Adicional","Precio promoción","Precio por unidad","precio Referencia","Categoria","Mejor promoción"])
+df = pd.DataFrame(productos, columns=["Nombre producto","Cantidad","Unidad","Adicional","Precio promoción","Precio por unidad","precio Referencia","Categoria","Mejor promoción","Fecha de resultados"])
 df.to_excel("ara.xlsx",engine = 'xlsxwriter',index=False)
 driver.close()
