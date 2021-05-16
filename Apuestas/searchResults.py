@@ -4,10 +4,14 @@ from bs4 import BeautifulSoup
 from bs4.element import PageElement
 from selenium.webdriver.chrome.webdriver import WebDriver
 from datetime import datetime
-from Utils import *
 import re
 import time
 import random
+import sys
+
+sys.path.append(".")
+from Apuestas.Utils import *
+
 
 driver_google = None
 FINAL = {2:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",1:"imso_mh__ft-mtch imso-medium-font imso_mh__ft-mtchc",3:"tsp-fm"}
@@ -17,7 +21,7 @@ def iniciarDriver() -> WebDriver:
     driver_google = webdriver.Chrome('./chrome/chromedriver')
 
 def results(page,type,empate = "empate"):
-    datos:pd.DataFrame = pd.read_excel(NAMEFILE[page],sheet_name=SHEETNAMES.get(type))
+    datos:pd.DataFrame = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE[page]}",sheet_name=SHEETNAMES.get(type))
     df_datos = datos.drop_duplicates(subset=SUBSET, keep='last')
     df = search(df_datos,type,empate)             
     datos["Finalizado"].\
@@ -116,7 +120,7 @@ def searhEverySesult():
                 dfs.append((results(page,sheet,empate="no_empate"),sheet))
             else:
                 dfs.append((results(page,sheet),sheet))
-        writer = pd.ExcelWriter(NAMEFILE.get(page),engine="xlsxwriter")
+        writer = pd.ExcelWriter(f"Apuestas/excel_files/{NAMEFILE.get(page)}",engine="xlsxwriter")
         for df,sheet in dfs:
             df.to_excel(writer,index=False,sheet_name=SHEETNAMES[sheet])
         writer.save()

@@ -4,8 +4,12 @@ from bs4 import BeautifulSoup
 import bs4
 from selenium import webdriver
 import pandas as pd
-from Utils import *
 import re
+import sys
+
+sys.path.append(".")
+from Apuestas.Utils import *
+
 
 driver = webdriver.Chrome('chrome/chromedriver')
 
@@ -32,7 +36,7 @@ def df_to_excel():
     bask = basket()
     tenn = tennis()
     tabl = table()
-    writer = pd.ExcelWriter(NAMEFILE.get(1),engine="xlsxwriter")
+    writer = pd.ExcelWriter(f"Apuestas/excel_files/{NAMEFILE.get(1)}",engine="xlsxwriter")
     bask.to_excel(writer,index=False,sheet_name="Basketball")
     foot.to_excel(writer,index=False,sheet_name="Football")
     tenn.to_excel(writer,index=False,sheet_name="Tennis")
@@ -46,7 +50,7 @@ def basket():
         driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-basketball']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[1])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(1)}",sheet_name=SHEETNAMES[1])
             return df_excel
         except Exception as _:
             return pd.DataFrame(columns=COLUMNAS["no_empate"])
@@ -100,7 +104,7 @@ def football():
         driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-soccer']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[2])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(1)}",sheet_name=SHEETNAMES[2])
             return df_excel
         except Exception as _:
             return pd.DataFrame(columns=COLUMNAS["empate"])
@@ -154,7 +158,7 @@ def table():
         driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-table_tennis']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[4])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(1)}",sheet_name=SHEETNAMES[4])
             return df_excel
         except Exception as e:
             print(e)
@@ -208,7 +212,7 @@ def tennis():
         driver.find_element_by_xpath("//i[@class='sb-navbar-item--icon codere-icon icon-tennis']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(1),sheet_name=SHEETNAMES[3])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(1)}",sheet_name=SHEETNAMES[3])
             return df_excel
         except Exception as e:
             print(e)

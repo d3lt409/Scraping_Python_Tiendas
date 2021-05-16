@@ -1,5 +1,5 @@
-import page2
-import page1
+from Apuestas import page2
+from Apuestas import page1
 import schedule
 
 page1.runPage()

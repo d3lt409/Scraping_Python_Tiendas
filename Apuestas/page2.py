@@ -5,7 +5,10 @@ from bs4.element import PageElement
 from selenium import webdriver
 import pandas as pd
 from datetime import datetime
-from Utils import *
+import sys
+
+sys.path.append(".")
+from Apuestas.Utils import *
 
 driver = webdriver.Chrome("./chrome/chromedriver")
 PARTIDOS = {"bask":"inplay-tab-BASK","foot":"inplay-tab-FOOT","tenn":"inplay-tab-TENN","tabl":"inplay-tab-TABL"}
@@ -34,7 +37,7 @@ def df_to_excel():
     bask = page2Bask()
     tenn = page2Tenn()
     tabl = page2Tabl()
-    writer = pd.ExcelWriter(NAMEFILE.get(2),engine="xlsxwriter")
+    writer = pd.ExcelWriter(f"Apuestas/excel_files/{NAMEFILE.get(2)}",engine="xlsxwriter")
     bask.to_excel(writer,index=False,sheet_name="Basketball")
     foot.to_excel(writer,index=False,sheet_name="Football")
     tenn.to_excel(writer,index=False,sheet_name="Tennis")
@@ -52,7 +55,7 @@ def page2Foot():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-FOOT']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[2])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[2])
             return df_excel
         except Exception as _:
             return pd.DataFrame(columns=COLUMNAS["empate"])
@@ -101,7 +104,7 @@ def page2Bask():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-BASK']").click()
     except Exception as _:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[1])
             return df_excel
         except Exception as _:
             return pd.DataFrame(columns=COLUMNAS["no_empate"])
@@ -116,7 +119,7 @@ def page2Bask():
         campeonatos = bask.find_all("div",{"class":re.compile(CAMPEONATOS)})
         print(type(campeonatos))
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[1])
             return df_excel
         except Exception as _:
             return pd.DataFrame(columns=COLUMNAS["no_empate"])
@@ -155,7 +158,7 @@ def page2Bask():
 
     #print(names,scores,pricesTo)
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[1])
+        df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[1])
         df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
@@ -201,7 +204,7 @@ def page2Tenn():
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[3])
+        df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[3])
         df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
@@ -214,7 +217,7 @@ def page2Tabl():
         driver.find_element_by_xpath("//a[@href='#inplay-tab-TABL']").click()
     except Exception as e:
         try:
-            df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[4])
+            df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[4])
             return df_excel
         except Exception as ex:
             return pd.DataFrame(columns=COLUMNAS["no_empate"])
@@ -247,7 +250,7 @@ def page2Tabl():
     #print(names,scores,pricesTo)
 
     try:
-        df_excel = pd.read_excel(NAMEFILE.get(2),sheet_name=SHEETNAMES[4])
+        df_excel = pd.read_excel(f"Apuestas/excel_files/{NAMEFILE.get(2)}",sheet_name=SHEETNAMES[4])
         df_values = pd.DataFrame(values,columns=COLUMNAS["no_empate"])
         df = df_excel.append(df_values)
         return df
