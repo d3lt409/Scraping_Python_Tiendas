@@ -11,6 +11,7 @@ from selenium.webdriver.remote.webelement import WebElement
 
 
 URL = 'https://aratiendas.com/inicio/centro/'
+FILENAME = 'ara.xlsx'
 
 def categoria_promo(valor:str):
     cat = re.search("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry tag-destacado categorias_rebajon-[\w]+(-[\w]+)* zonas_rebajon-nacional",valor)
@@ -121,31 +122,49 @@ def articulos_destacados():
     productos = organizar_articulos(destacados,None,True)
     return productos
 
-driver = webdriver.Chrome('chrome/chromedriver')
-driver.get("https://aratiendas.com/rebajon/centro/")
-productos = articulos_destacados()
-
-val = driver.find_elements_by_xpath("//div[@class='filter-rebajon-checkbox']")
-for v in val:
-    v:WebElement
-    element = v.find_element_by_tag_name("label")
-    driver.execute_script("arguments[0].click();", element)
-    time.sleep(3)
-    xpath_pages = "//div[@id='rebajon-content-box']/div/nav/div"
-    pages:list = driver.find_elements_by_xpath(xpath_pages)
-    for i in range(len(pages)):
-        ele = driver.find_element_by_css_selector(f"#rebajon-content-box > div > nav > div:nth-child({i+1})")
-        driver.execute_script("arguments[0].click();", ele)
+def articulos_no_destacados():
+    productos = []
+    val = driver.find_elements_by_xpath("//div[@class='filter-rebajon-checkbox']")
+    for v in val:
+        v:WebElement
+        element = v.find_element_by_tag_name("label")
+        driver.execute_script("arguments[0].click();", element)
         time.sleep(3)
-        cat = v.find_elements_by_tag_name("div")
-        cat = cat[len(cat)-1].text
-        soup = BeautifulSoup(driver.page_source,'html5lib')
-        content = soup.find("div",{"id":"rebajon-content-box"})
-        articles = content.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional")})
-        productos+=organizar_articulos(articles,cat,False)
-    driver.execute_script("arguments[0].click();", element)
-    time.sleep(3)
+        xpath_pages = "//div[@id='rebajon-content-box']/div/nav/div"
+        pages:list = driver.find_elements_by_xpath(xpath_pages)
+        for i in range(len(pages)):
+            ele = driver.find_element_by_css_selector(f"#rebajon-content-box > div > nav > div:nth-child({i+1})")
+            driver.execute_script("arguments[0].click();", ele)
+            time.sleep(3)
+            cat = v.find_elements_by_tag_name("div")
+            cat = cat[len(cat)-1].text
+            soup = BeautifulSoup(driver.page_source,'html5lib')
+            content = soup.find("div",{"id":"rebajon-content-box"})
+            articles = content.find_all("article",{"class":re.compile("elementor-post elementor-grid-item ecs-post-loop post-[\d]+ productos_rebajon type-productos_rebajon status-publish format-standard has-post-thumbnail hentry categorias_rebajon-[\w]+(-[\w]+)+ zonas_rebajon-nacional")})
+            productos+=organizar_articulos(articles,cat,False)
+        driver.execute_script("arguments[0].click();", element)
+        time.sleep(3)
+    return productos
 
-df = pd.DataFrame(productos, columns=["Nombre producto","Cantidad","Unidad","Adicional","Precio promoción","Precio por unidad","precio Referencia","Categoria","Mejor promoción","Fecha de resultados"])
+def main():
+    global driver
+    driver = webdriver.Chrome('chrome/chromedriver')
+    driver.get("https://aratiendas.com/rebajon/centro/")
+    productos = articulos_destacados()
+    productos+=articulos_no_destacados()
+    df = pd.DataFrame(productos, columns=["Nombre producto","Cantidad","Unidad","Adicional","Precio promoción","Precio por unidad","precio Referencia","Categoria","Mejor promoción","Fecha de resultados"])
+    try:
+        df_excel = pd.read_excel(FILENAME)
+        df_total = df_excel.append(df)
+        df_total.to_excel(FILENAME,index=False)
+        print(f"Guardado a las {datetime.now()} para {FILENAME}")
+    except Exception as _:
+        df.to_excel(FILENAME,index=False)
+    driver.close()
+
+
+
+
+
 df.to_excel("ara.xlsx",engine = 'xlsxwriter',index=False)
 driver.close()
