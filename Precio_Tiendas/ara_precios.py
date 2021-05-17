@@ -37,7 +37,7 @@ def nombre_cantidad(valor:str):
                 unidad = re.search("(G|ML|M|CM|UN)",cant).group(0)
                 adi = cant.replace(cantidad,"").replace(unidad,"").strip()
                 cant_uni = [cantidad,unidad]
-            return [valor,cant_uni[0],cant_uni[1],adi]
+            return [valor,int(cant_uni[0]),cant_uni[1],adi]
         elif (cant.startswith("X")):
             cant = cant[2:]
             try:
@@ -50,11 +50,11 @@ def nombre_cantidad(valor:str):
                 adi = cant.replace(cantidad,"").replace(unidad,"").strip()
                 cant_uni = [cantidad,unidad]
 
-            return [valor,cant_uni[0],cant_uni[1],adi]
+            return [valor,int(cant_uni[0]),cant_uni[1],adi]
         else:
             cant = cant.replace("(","").replace(")","")
             cant_uni = cant.split()
-            return [valor,cant_uni[0],cant_uni[1],""]
+            return [valor,int(cant_uni[0]),cant_uni[1],""]
     else:
         return [valor,1, "UN",""]
 
@@ -71,12 +71,12 @@ def form_precio_unitario(valor:str):
     return float(exp.replace(",","."))
 
 def form_precio_referencia(valor:str):
-    exp = valor.replace("$","").replace(".","").strip()
+    exp = int(valor.replace("$","").replace(".","").strip())
     return exp
 
 def precio_promo(valor:str):
     exp = re.search("\d+(\.\d+)+",valor).group(0)
-    return exp.replace(".","")
+    return int(exp.replace(".",""))
 
 def organizar_articulos(page:ResultSet,cat,destacado:bool):
     products = []
@@ -93,7 +93,6 @@ def organizar_articulos(page:ResultSet,cat,destacado:bool):
 
         sep = nombre_cantidad(item[1].text.strip())
         precio = precio_promo(item[2].text.strip())
-
         if (len(item) == 6):
             prec_uni = form_precio_unitario(item[3].text.strip())
             prec_ref = form_precio_referencia(item[5].text.strip()) 
@@ -130,6 +129,18 @@ def articulos_no_destacados():
         element = v.find_element_by_tag_name("label")
         driver.execute_script("arguments[0].click();", element)
         time.sleep(3)
+        while True:
+            try:
+                cont = driver.find_element_by_css_selector('#rebajon-content-box > h3')
+                if (cont.text == "Cargando los productos..."):
+                    time.sleep(4)
+                    print("No quiere cargar la página :(")
+                    continue
+                else:
+                    break
+            except Exception as _:
+                break
+
         xpath_pages = "//div[@id='rebajon-content-box']/div/nav/div"
         pages:list = driver.find_elements_by_xpath(xpath_pages)
         for i in range(len(pages)):

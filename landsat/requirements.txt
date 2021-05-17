@@ -1,0 +1,11 @@
+seaborn==0.11.1
+requests==2.25.1
+Shapely==1.7.1
+pandas==1.1.3
+matplotlib==3.4.1
+numpy==1.20.3
+rasterio==1.2.3
+geojson==2.5.0
+geopandas==0.9.0
+landsatxplore==0.13.0
+missingno==0.4.2
