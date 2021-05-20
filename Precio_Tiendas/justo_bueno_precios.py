@@ -128,10 +128,14 @@ def precio_promo(valor:str):
     return float(exp.replace(".",""))
 
 def main():
-    pass
+    df = pd.DataFrame(for_each_city(),columns=["Ciudad","Nomnre","Categoria","Sub categoria","Cantidad","Unidad","Precio_unidad","Precio","Fecha de lectura"])
+    df.to_excel(f"Precio_Tiendas/excel_files/{FILENAME}",engine = 'xlsxwriter',index=False)
+    try:
+        df_excel = pd.read_excel(f"Precio_Tiendas/excel_files/{FILENAME}")
+        df_total = df_excel.append(df)
+        df_total.to_excel(f"Precio_Tiendas/excel_files/{FILENAME}",engine = 'xlsxwriter',index=False)
+    except Exception as _:
+        df.to_excel(f"Precio_Tiendas/excel_files/{FILENAME}",engine = 'xlsxwriter',index=False)
 
-producto_final = for_each_city()
-
-df = pd.DataFrame(producto_final,columns=["Ciudad","Nomnre","Categoria","Sub categoria","Cantidad","Unidad","Precio_unidad","Precio","Fecha de lectura"])
-print(df)
-df.to_excel(f"Precio_Tiendas/excel_files/{FILENAME}",engine = 'xlsxwriter',index=False)
+    print(f"Guardado a las {datetime.now()} para {FILENAME}")
+    driver.close()
