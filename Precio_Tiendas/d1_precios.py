@@ -43,8 +43,16 @@ def categoires():
     time.sleep(2)
     for i in range(1,12):
         cat_list.append(driver.find_element_by_css_selector(f"#app > div > div.Header__StyledHeader-sc-8w91gm-0.encWLd > div.SubHeader__ContainerForTransparency-sc-136tppk-0.ksPlGk > div > div.SubHeader__CategoryContainer-sc-136tppk-2.jNXlfh > div > div > div:nth-child({i}) > div.center.categories__card__txt__container > p").text)
-    
-    driver.execute_script("arguments[0].click();",driver.find_element_by_xpath(f"//p[@class='categories__card__txt'][contains(text(),'{cat_list.pop(0)}')]"))
+    category = cat_list.pop(0)
+    driver.execute_script("arguments[0].click();",driver.find_element_by_xpath(f"//p[@class='categories__card__txt'][contains(text(),'{category}')]"))
+    subcategories(category)
 
+def subcategories(category):
+    time.sleep(2)
+    sub_lis = driver.find_elements_by_xpath("//*[@id='app']/div/div[2]/div/div/div[2]/ul/a")
+    for sub in sub_lis:
+        print(sub.text)
+        driver.execute_script("arguments[0].click();",sub)
+        time.sleep(3)
 login()
 categoires()
