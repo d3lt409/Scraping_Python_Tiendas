@@ -8,10 +8,22 @@ import pandas as pd
 import re
 from selenium.webdriver.remote.webelement import WebElement
 
+
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+
+
 FILENAME = "justo_y_bueno.xlsx"
 
-driver = webdriver.Chrome('chrome/chromedriver')
-driver.get("https://monedero.justoybueno.com/home")
+chrome_options = Options()
+#chrome_options.add_argument('--headless')
+#chrome_options.add_argument("--disable-gpu")
+#chrome_options.add_argument('--no-sandbox')
+#chrome_options.add_argument('--disable-dev-shm-usage')
+#chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--log-level=3")
+driver = webdriver.Chrome(ChromeDriverManager().install(),chrome_options=chrome_options)
+driver.get("https://web.cornershopapp.com/store/1520/aisles")
 
 
 def for_each_city():
@@ -139,3 +151,5 @@ def main():
 
     print(f"Guardado a las {datetime.now()} para {FILENAME}")
     driver.close()
+    
+    df.filter()
