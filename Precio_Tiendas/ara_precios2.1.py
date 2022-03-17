@@ -7,7 +7,6 @@ import pandas as pd
 import re
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
@@ -17,6 +16,7 @@ from selenium.common.exceptions import TimeoutException,NoSuchElementException
 import sqlalchemy
 
 FILENAME = "Ara_cornershopapp.xlsx"
+COLUMNS = ["Categoria","Sub_categoria","Nombre","Cantidad","Unidad","Precio","Fecha_de_lectura","Hora_de_lectura"]
 
 chrome_options = Options()
 #chrome_options.add_argument('--headless')
@@ -72,10 +72,13 @@ def sub_categories(cat):
         if (pos == positions_more_elements[len(positions_more_elements)-1]): break
         driver.get(current)
         scroll_down(2)
-        
+    df = pd.DataFrame(products,columns=COLUMNS)
+    to_database(df)
+    print(f"Productos guardados, para la categoría {cat}")
     return products
 
 def get_products(html,cat,subcat):
+    time.sleep(2)
     productos = []
     soup = BeautifulSoup(html,'html5lib')
     product_object:ResultSet = soup.find_all("div",{"class":"product-info"})
@@ -86,7 +89,8 @@ def get_products(html,cat,subcat):
         cantidad_unidad = product.find("p",{"class":"package"})
         if cantidad_unidad: cantidad_unidad = unidades_producto(cantidad_unidad.text.strip())
         else: continue
-        productos.append([cat,subcat,name,cantidad_unidad[0],cantidad_unidad[1],precio,datetime.now()])
+        date = datetime.now()
+        productos.append([cat,subcat,name,cantidad_unidad[0],cantidad_unidad[1],precio,date.date(),date.time()])
     return productos    
 
 def scroll_down(time_limit,init=0):
@@ -135,7 +139,9 @@ def to_database(df:pd.DataFrame):
             Cantidad INTEGER,
             Unidad text,
             Precio REAL,
-            Fecha_de_lectura TEXT
+            Fecha_de_lectura TEXT,
+            Hora_de_lectura TEXT,
+            UNIQUE(Nombre,Fecha_de_lectura) ON CONFLICT IGNORE
         );
         """
     engine.execute(query)
@@ -154,8 +160,7 @@ def to_database(df:pd.DataFrame):
     engine.dispose()
 
 def main():
-    df = pd.DataFrame(all_categories(),columns=["Categoria","Sub_categoria","Nombre","Cantidad","Unidad","Precio","Fecha_de_lectura"])
-    to_database(df)
+    df = pd.DataFrame(all_categories(),columns=COLUMNS)
     try:
         df_excel = pd.read_excel(f"Precio_Tiendas/excel_files/{FILENAME}")
         df_total = pd.concat([df_excel,df])

@@ -13,8 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-import sqlite3
+import sqlalchemy
 import gc
 
 from webdriver_manager.chrome import ChromeDriverManager
@@ -23,17 +22,29 @@ from selenium.webdriver.chrome.options import Options
 FILENAME = "exito_precios.xlsx"
 MAIN_PAGE = "https://www.exito.com"
 LIST_CITY = ["Bogota"]  # ,"Medellin","Barranquilla","Cali","Cartagena","Armenia","Bello","Bucaramanga","Chia","Cucuta","Fusagasuga","Ibage","La ceja","Manizales","Monteria","Neiva","Pasto","Pereita","Popayan","Rionegro","Santa marta", "Sincelejo","Soacha","Tunja","Valledupar","Villavicencio","Zipaquira"]
-
+COLUMNS = ["Ciudad", "Categoria", "Sub_categoria", "Nombre_producto", "Precio_oferta", "Cantidad", 
+           "Unidad", "Precio_normal", "Fecha_resultados","Hora_resultados"]
 
 chrome_options = Options()
 #chrome_options.add_argument('--headless')
 #chrome_options.add_argument("--disable-gpu")
-#chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--no-sandbox')
 #chrome_options.add_argument('--disable-dev-shm-usage')
-#chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--disable-extensions")
+prefs = {'profile.default_content_setting_values': { 'images': 2, 
+                            'plugins': 2, 'popups': 2, 'geolocation': 2, 
+                            'notifications': 2, 'auto_select_certificate': 2, 'fullscreen': 2, 
+                            'mouselock': 2, 'mixed_script': 2, 'media_stream': 2, 
+                            'media_stream_mic': 2, 'media_stream_camera': 2, 'protocol_handlers': 2, 
+                            'ppapi_broker': 2, 'automatic_downloads': 2, 'midi_sysex': 2, 
+                            'push_messaging': 2, 'ssl_cert_decisions': 2, 'metro_switch_to_desktop': 2, 
+                            'protected_media_identifier': 2, 'app_banner': 2, 'site_engagement': 2, 
+                            'durable_storage': 2}}
+chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_argument("--log-level=3")
 driver = webdriver.Chrome(ChromeDriverManager().install(),chrome_options=chrome_options)
 driver.maximize_window()
+driver.execute_script("document.body.style.zoom='70 %'")
 
 def for_each_city():
     global driver
@@ -47,8 +58,10 @@ def for_each_city():
 
 
 def each_departamentos(city: str):
-    departamentos: List[tuple] = [(str(dep.get_attribute('id')), str(dep.text.strip())) for dep in WebDriverWait(driver, 20).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//div[@class='exito-header-3-x-dropdownitem exito-header-3-x-categoryOption']")))]
+    departamentos: List[tuple[str]] = [
+        (dep.get_attribute('id'), dep.text) for dep in WebDriverWait(driver, 20).until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, "//div[@class='exito-header-3-x-dropdownitem exito-header-3-x-categoryOption']")))]
     list_articles =[]
     for dep in departamentos:
         link_departamento = f"{MAIN_PAGE}/{dep[0]}"
@@ -60,19 +73,19 @@ def each_departamentos(city: str):
             input.send_keys(Keys.RETURN)
             driver.execute_script("arguments[0].click();", WebDriverWait(driver, 10).until(EC.presence_of_element_located(
                 (By.XPATH, "//button[@class='exito-geolocation-3-x-primaryButton shippingaddress-confirmar']"))))
-        except TimeoutException as _:
-            pass
+        except TimeoutException as e:
+            e.with_traceback()
         list_articles += categories(city, link_departamento, dep)
     return list_articles
 
 
 def categories(city: str, link_departamento, departamento: Tuple[str]):
     WebDriverWait(driver,10).until(EC.presence_of_element_located((By.XPATH,"//div[@id='imagen']")))
-    heigth = driver.execute_script("return document.body.scrollHeight")
-    scroll_down(round(heigth*0.3))
+    scroll_down(2)
     list_elements = []
     try:
-        categories: List[str] = [cat.get_attribute("id").replace("category-3-", "") for cat in WebDriverWait(driver, 50).until(EC.presence_of_all_elements_located(
+        categories: List[str] = [
+            cat.get_attribute("id").replace("category-3-", "") for cat in WebDriverWait(driver, 50).until(EC.presence_of_all_elements_located(
             (By.XPATH, "//div[@class='exito-filters-0-x-filter__container exito-filters-0-x-filter__container--new-layout-filters bb b--muted-4 exito-filters-0-x-filter__container--category-3']/div[2]/div/div/div/div/div/div/div/input")))]
         for cat in categories:
             driver.get(
@@ -97,22 +110,24 @@ def categories(city: str, link_departamento, departamento: Tuple[str]):
                 list_elements += categoria_especial(city,link_departamento,cat,departamento)
                 continue
             time.sleep(2)
-            list_elements+=get_elements(city,departamento[1],cat)
-        print(pd.DataFrame(list_elements))
+            list_elements+=button_more_items(city,departamento[1],cat)
         return list_elements
-    except TimeoutException as _:
+    except TimeoutException as e:
+        e.with_traceback()
         categories: List[str] = [cat.get_attribute("id").replace("category-2-", "") for cat in WebDriverWait(driver, 50).until(EC.presence_of_all_elements_located(
             (By.XPATH, "//div[@class='exito-filters-0-x-filter__container exito-filters-0-x-filter__container--new-layout-filters bb b--muted-4 exito-filters-0-x-filter__container--category-2']/div[2]/div/div/div/div/div/input")))]
         for cat in categories:
             driver.get(f"{link_departamento}/{cat}")
             time.sleep(2)
-            list_elements+=get_elements(city,departamento[1],cat)
+            list_elements+=button_more_items(city,departamento[1],cat)
         return list_elements
 
 
 
 def categoria_especial(city,link_departamento,categoria: str,departamento):
     listado = []
+    driver.execute_script("document.body.style.zoom='70 %'")
+    scroll_down(2)
     cat_esp: List[str] = [cat.get_attribute("id").replace("tipo-de-mascota-", "") for cat in WebDriverWait(driver, 50).until(EC.presence_of_all_elements_located(
         (By.XPATH, "//div[@class='exito-filters-0-x-filter__container exito-filters-0-x-filter__container--new-layout-filters bb b--muted-4 exito-filters-0-x-filter__container--tipo-de-mascota']/div[2]/div/div/div/div/div/input")))]
     for esp in cat_esp:
@@ -126,78 +141,90 @@ def categoria_especial(city,link_departamento,categoria: str,departamento):
             pass
         
         time.sleep(2)
-        button_more_items()
-        listado += get_elements(city,departamento[1],categoria)
+        listado += button_more_items(city,departamento[1],categoria)
         
     return listado
 
 
 
-def button_more_items():
+def button_more_items(city, cat, subcat):
+    list_products = []
     while True:
         try:
-            driver.execute_script("arguments[0].click();", WebDriverWait(
-                driver, 10).until(EC.presence_of_element_located(
-                    (By.XPATH, "//div[@class='vtex-button__label flex items-center justify-center h-100 ph5 ']"))))
+            element = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='vtex-button__label flex items-center justify-center h-100 ph5 ']")))
+            driver.execute_script("arguments[0].scrollIntoView(true);", element)
+            driver.execute_script("arguments[0].click();", element)
+            list_products+=get_elements(city, cat, subcat)
         except (TimeoutException) as _:
-            heigth = driver.execute_script("return document.body.scrollHeight")
-            scroll_down(round(heigth*0.9))
+            list_products+=get_elements(city, cat, subcat)
             break
+    return list_products
 
 
-def scroll_down(heigth, init: int = 0):
-    for i in range(init, heigth, round(heigth*0.3)):
-        driver.execute_script(f"window.scrollTo(0, {i});")
-        time.sleep(2)
+def scroll_down(time_limit,init=0):
+    time.sleep(time_limit)
+    heigth = driver.execute_script("return document.body.scrollHeight")-500
+    step = int(heigth*0.01)
+    for val in range(init,heigth,step):
+        driver.execute_script(f"window.scrollTo(0, {val});")
+    if driver.execute_script("return document.body.scrollHeight")-heigth >500:
+        scroll_down(0,heigth)
 
 
 def get_elements(city, cat, subcat):
-    time.sleep(2)
-        
-    soup = BeautifulSoup(driver.page_source, 'html5lib')
-    container: PageElement = soup.find(
-        "div", {"id": 'gallery-layout-container'})
-    if not container:
-        soup = BeautifulSoup(driver.page_source, 'html5lib')
-        container: PageElement = soup.find(
-            "div", {"id": 'gallery-layout-container'})
-    elements: ResultSet = container.find_all(
-        "div", {"class": "vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--product-info-container"})
+    driver.execute_script("document.body.style.zoom='70 %'")
+    time.sleep(3)
+    container:WebElement = WebDriverWait(
+        driver, 20).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
+    driver.execute_script("arguments[0].scrollIntoView(true);", container)
+
+    elements: List[WebElement] = WebDriverWait(driver,10).until(lambda _: 
+            container.find_elements_by_xpath("div/section/a/article/div[3]/div[2]"))
     list_elements = []
     for el in elements:
-        el: PageElement
-        precio = select_price(el)
-        nombre_cantidad_unidad = nombre_cantidad(select_name(el))
-        precio_norm = precio_normal(el)
+        driver.execute_script("arguments[0].scrollIntoView(true);",el)
+        element = BeautifulSoup(el.get_attribute('innerHTML'),'html5lib')
+        precio = select_price(element)
+        nombre_cantidad_unidad = nombre_cantidad(select_name(element))
+        precio_norm = precio_normal(element)
+        date = datetime.now()
         if (len(nombre_cantidad_unidad) == 3):
             list_elements.append(
-                (city, cat, subcat, nombre_cantidad_unidad[0], precio, nombre_cantidad_unidad[1], nombre_cantidad_unidad[2], precio_norm, datetime.now()))
+                (city, cat, subcat, nombre_cantidad_unidad[0].replace("\n"," "), precio, nombre_cantidad_unidad[1], 
+                 nombre_cantidad_unidad[2], precio_norm, date.date(),date.time()))
         else:
             list_elements.append(
-                (city, cat, subcat, nombre_cantidad_unidad[0], precio, nombre_cantidad_unidad[1], "", precio_norm, datetime.now()))
+                (city, cat, subcat, nombre_cantidad_unidad[0].replace("\n"," "), precio, nombre_cantidad_unidad[1], "", 
+                 precio_norm, date.date(),date.time()))
         # print(list_elements)
+    df = pd.DataFrame(list_elements, columns=COLUMNS)
+    to_data_base(df)
+    print(f"Productos guardados, para la categoría {cat}")
     return list_elements
 
 
-def select_price(element: PageElement):
-    try:
+def select_price(element: BeautifulSoup):
+    try: # div/div/div/div[4]/div[2]/div/span
         return precio_promo(
             element.find_next(
-                "div", {"class":"mb1 exito-vtex-components-4-x-alliedPrices"}
-            ).find_next("span").find_next("div").find_next("div").find("div").text)
-    except:
+                "div", {"class":"exito-vtex-components-4-x-selling-price flex items-center"}
+            ).find_next("div").find_next("span").text)
+    except Exception as e:
+        print(e,e.args)
         pass
     try:
         return precio_promo(
             element.find_next(
                 "div", {
                     "class": "flex f5 fw5 pa0 flex items-center justify-start w-100 search-result-exito-vtex-components-selling-price exito-vtex-components-4-x-alliedDiscountPrice"}).find("span").text)
-    except:
+    except Exception as e:
+        print(e,e.args)
         return ""
     
 
 
-def select_name(element: PageElement):
+def select_name(element: BeautifulSoup):
     try:
         nombre_cantidad_unidad = element.find_next(
             "div", {"class": "exito-product-summary-3-x-nameContainer undefined "}).find("div").text.strip()
@@ -212,12 +239,14 @@ def select_name(element: PageElement):
     return nombre_cantidad_unidad
 
 
-def precio_normal(element: PageElement):
+def precio_normal(element: BeautifulSoup):
     try:
         precio_normal = precio_promo(
-            element.find_next("del").find("span").text.strip())
+            element.find_next("div",{"class":"exito-vtex-components-4-x-list-price t-mini ttn strike"})\
+                .find_next("span",{"class":"exito-vtex-components-4-x-currencyContainer"}).text.strip())
         return precio_normal
-    except:
+    except Exception as e :
+        print(e,e.args)
         return ""
 
 
@@ -243,12 +272,10 @@ def nombre_cantidad(nom_cant: str):
 
 
 
-
-
 def to_data_base(data: pd.DataFrame):
 
-    conn = sqlite3.connect("./Precio_Tiendas/base_de_datos/Precios.sqlite")
-    cur = conn.cursor()
+    connection_uri = "sqlite:///Precio_Tiendas/base_de_datos/Precios.sqlite"
+    engine = sqlalchemy.create_engine(connection_uri)
     query = f"""
     CREATE TABLE IF NOT EXISTS Exito (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
@@ -260,26 +287,18 @@ def to_data_base(data: pd.DataFrame):
         Cantidad int,
         Unidad text,
         Precio_normal REAL,
-        Fecha_resultados TEXT
+        Fecha_resultados TEXT,
+        Hora_resultados TEXT,
+        UNIQUE(Categoria,Nombre_producto,Fecha_resultados) ON CONFLICT IGNORE
     );
     """
-    cur.executescript(query)
-    data = data.fillna("")
-    data = data.astype("str")
-    values = data.values
-    q = "INSERT INTO Exito (Ciudad,Categoria,Sub_categoria,Nombre_producto,Precio_oferta,Cantidad,Unidad ,Precio_normal,Fecha_resultados) VALUES (?,?,?,?,?,?,?,?,?)"
-    cur.executemany(q, values)
-    conn.commit()
-    cur.close()
-    conn.close()
+    engine.execute(query)
+    data.to_sql("Exito",engine, if_exists='append', index=False)
+    engine.dispose()
 
 
 def main():
-    df = pd.DataFrame(for_each_city(), columns=["Ciudad", "Categoria", "Sub_categoria",
-                      "Nombre_producto", "Precio_oferta", "Cantidad", "Unidad ", "Precio_normal", "Fecha_resultados"])
-    #df = df.drop_duplicates(subset=["Ciudad","Categoria","Nombre_producto","Precio_oferta","Cantidad","Unidad ","Precio_normal"],keep='last',ignore_index=True)
-    print(df)
-    to_data_base(df)
+    df = pd.DataFrame(for_each_city(), columns=COLUMNS)
     try:
         df_excel = pd.read_excel(f"Precio_Tiendas/excel_files/{FILENAME}")
         df_total = df_excel.append(df)
