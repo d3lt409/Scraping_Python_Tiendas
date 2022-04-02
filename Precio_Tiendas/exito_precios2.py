@@ -2,6 +2,7 @@ from datetime import datetime
 import sys
 import time
 from typing import List, Tuple
+from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import pandas as pd
@@ -86,8 +87,12 @@ def each_departamentos(city: str):
 def categories(link_departamento:str, departamento: Tuple[str]):
     global current_url
     WebDriverWait(driver,10).until(EC.presence_of_element_located((By.XPATH,"//div[@id='imagen']")))
-    scroll_down(2)
+    ready_document()
+    cat_view:WebElement = WebDriverWait(driver, 50).until(EC.presence_of_element_located(
+        (By.XPATH, "//div[contains(@class,'--category-2')]")))
+    driver.execute_script("arguments[0].scrollIntoView(true);",cat_view)
     list_elements = []
+    time.sleep(1)
     cat_objects:list[WebElement] = WebDriverWait(driver, 50).until(EC.presence_of_all_elements_located(
         (By.XPATH, "//div[contains(@class,'--category-2')]/div[2]/div/div/div/div/div/input")))
     categories: List[str] = [
@@ -107,7 +112,10 @@ def sub_categories(link_departamento,categoria: str,departamento):
     global current_url
     ready_document()
     listado = []
-    scroll_down(2)
+    subcat_view:WebElement = WebDriverWait(driver, 50).until(EC.presence_of_element_located(
+        (By.XPATH, "//div[contains(@class,'--category-3')]")))
+    driver.execute_script("arguments[0].scrollIntoView(true);",subcat_view)
+    time.sleep(2)
     sub_cat_object: list[WebElement] = WebDriverWait(driver, 50).until(
         EC.presence_of_all_elements_located((By.XPATH, 
                     "//div[contains(@class,'--category-3')]/div[2]/div/div/div/div/div/input")))
@@ -127,26 +135,6 @@ def sub_categories(link_departamento,categoria: str,departamento):
             listado += get_elements(departamento[1],categoria,subcat)
             count+=1
     return listado
-
-# def por_marca(city,link_departamento,departamento,categoria,esp):
-#     global current_url
-#     listado = []
-#     marcas_object:list[WebElement] = WebDriverWait(driver, 30).until(EC.presence_of_all_elements_located(
-#                 (By.XPATH, "//div[contains(@class, 'container--brand')]/div[2]/div/div/div/div[2]/div/div/div/input")))
-#     for marca in [val.get_attribute("id") for val in marcas_object]:
-#         marca:str = marca.replace("brand-","")
-#         current_url = f"{link_departamento}/{categoria}/{marca}/{esp}?fuzzy=0&initialMap=c&initialQuery={departamento[0]}&map=category-1,category-3,brand,tipo-de-mascota&operator=and"
-#         driver.get(
-#             f"{link_departamento}/{categoria}/{marca}/{esp}?fuzzy=0&initialMap=c&initialQuery={departamento[0]}&map=category-1,category-3,brand,tipo-de-mascota&operator=and")
-#         ready_document()
-#         try:
-#             WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-#                 (By.XPATH, "//h2[@class='tc fw1 exito-search-result-4-x-notFoundText']")))
-#             continue
-#         except TimeoutException:
-#             pass
-#         listado += button_more_items(city,departamento[1],categoria,esp)
-#     return listado
     
 def ready_document(tries=0):
     if tries == 4: return
@@ -171,10 +159,19 @@ def ready_document(tries=0):
     
 def crash_refresh_page():
     global driver
+    while not internet_on(): continue
+    if driver: driver.close()
     driver = webdriver.Chrome(ChromeDriverManager().install(),options=chrome_options)
     driver.maximize_window()
     driver.get(current_url)
     ready_document()
+
+def internet_on():
+   try:
+       urlopen('https://www.google.com/', timeout=10)
+       return True
+   except Exception as e: 
+       return False
             
 def button_more_items(city, dep, cat, subcat):
     global driver
@@ -200,7 +197,7 @@ def button_more_items(city, dep, cat, subcat):
 def scroll_down(time_limit,init=0):
     time.sleep(time_limit)
     final_heith = driver.execute_script("return document.body.scrollHeight")-heigth
-    step = int(final_heith*0.004)
+    step = int(final_heith*0.002)
     for val in range(init,final_heith,step):
         driver.execute_script(f"window.scrollTo(0, {val});")
     if driver.execute_script("return document.body.scrollHeight")-final_heith >heigth:
