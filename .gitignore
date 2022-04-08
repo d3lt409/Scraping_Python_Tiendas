@@ -11,3 +11,5 @@ LC08_*.txt
 .vscode/settings.json
 prueb*.py
 prueba.py
+driver
+shutdown.py

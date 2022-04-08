@@ -1,160 +1,149 @@
 from datetime import datetime
-import sys
 import time
-from typing import List, Tuple
 from bs4 import BeautifulSoup
-from selenium import webdriver
 import pandas as pd
 import re
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
-from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import sqlalchemy
-import gc
-import os
-
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
-
-from urllib.request import urlopen
+import sys
+sys.path.append(".")
+from Util import crash_refresh_page, init_scraping,ready_document
 
 FILENAME = "jumbo_precios.xlsx"
 MAIN_PAGE = "https://www.tiendasjumbo.co"
 COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Precio_oferta", "Cantidad",
            "Unidad", "Precio_normal", "Fecha_resultados", "Hora_resultados"]
-current_url_jumbo = MAIN_PAGE
-chrome_options = Options()
-# chrome_options.add_argument('--headless')
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-dev-shm-usage')
-chrome_options.add_argument("--disable-extensions")
-prefs = {'profile.default_content_setting_values': {'images': 2, 'plugins': 2, 'popups': 2,'geolocation': 2, 
-                                                    'notifications': 2, 'auto_select_certificate': 2, 'fullscreen': 2,
-                                                    'mouselock': 2, 'mixed_script': 2, 'media_stream': 2, 'media_stream_mic': 2,
-                                                    'media_stream_camera': 2, 'protocol_handlers': 2, 'ppapi_broker': 2,
-                                                    'automatic_downloads': 2, 'midi_sysex': 2, 'push_messaging': 2, 'ssl_cert_decisions': 2, 'metro_switch_to_desktop': 2,
-                                                    'protected_media_identifier': 2, 'app_banner': 2, 'site_engagement': 2, 'durable_storage': 2}}
-chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--log-level=3")
-
 
 
 def each_departments_categories():
     global current_url_jumbo
-    ready_document()
-    dep_element: WebElement = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "//ul[@class='navigation__categories__content']")))
-    html_sub = re.sub("""<!--[a-zA-Z0-9\<"_\-\/=> \n\t\?:&;íóéáñ,]+-->""","",dep_element.get_attribute("innerHTML"))
-    dep_categories_links: List[str] = re.findall(
-        """(?<=href=")\/[a-z-]+\/[a-z-]+[\?\w+=\w+]*""", html_sub)
-    list_articles = []
-    ready_document()
-    for dep in dep_categories_links:
-        current_url_jumbo = f"{MAIN_PAGE}{dep}"
+    ready_document(driver)
+    dep_button:WebElement = WebDriverWait(driver,30).until(EC.presence_of_element_located(
+                (By.XPATH,"//*[@id='menu-item-music-store']")
+            ))
+    time.sleep(2)
+    ActionChains(driver).click_and_hold(dep_button).perform()
+    dep_element_object:list[str] =[el.get_attribute("href") for el in WebDriverWait(driver, 30).until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, "//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item']/div/div/li//a"))) ] 
+    dep_cat_elements:dict[str,list[list[str]]] = {}
+    for a in dep_element_object:
+        el: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
+                    (By.XPATH, f"//a[@href='{a.replace(MAIN_PAGE,'')}']")))
+        text = el.text
+        ActionChains(driver).move_to_element(el).perform()
+        time.sleep(2)
         try:
-            driver.get(current_url_jumbo)
-            ready_document()
-        except TimeoutException:
-            time.sleep(10)
-            driver.get(current_url_jumbo)
-        try:
-            if WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "//div[@class='empty-search-message']/div[2]"))).text == '¡Oops!': continue
+            dep_cat_elements[text]= [
+                [ele.text,ele.get_attribute("href")] for ele in WebDriverWait(driver, 3).until(
+            EC.presence_of_all_elements_located((By.XPATH, "//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item tiendasjumboqaio-jumbo-main-menu-2-x-second_level tiendasjumboqaio-jumbo-main-menu-2-x-second_level--header-submenu-item']/li/div/span/a")))] 
         except TimeoutException as _:
-            pass
-        dep_cat = dep.replace("/"," ").strip().split()
-        get_subcategories(dep_cat[0],dep_cat[1])
+            dep_cat_elements[text] = ["",a]
+    list_articles = []
+    ready_document(driver)
+    for dep,cats in dep_cat_elements.items():
+        for cat in cats:
+            current_url_jumbo = cat[1]
+            try:
+                driver.get(current_url_jumbo)
+            except WebDriverException as _:
+                crash_refresh_page()
+            ready_document(driver)
+            list_articles+=get_subcategories(dep,cat[0],cat[1])
+            exit()
+
     return list_articles
 
 
-def get_subcategories(dep,cat):
+def get_subcategories(dep,cat,url):
     global current_url_jumbo
-    ready_document()
+    ready_document(driver)
+    dep_cat = url.replace("https://www.tiendasjumbo.co/","").split("/")
+    list_articles = []
+    if (len(dep_cat) != 2):
+        count = 1
+        while True:
+            if (url.__contains__("page=")): current_url_jumbo = re.sub("\d+$","",url)+str(count)
+            elif (url.__contains__("?")): current_url_jumbo = f"{url}&page={count}"
+            else : current_url_jumbo = f"{url}?page={count}"
+            
+            driver.get(current_url_jumbo)   
+            ready_document()
+            try:
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")))
+                break
+            except TimeoutException:
+                pass
+            list_articles += get_elements(dep, cat, "")
+            count+=1
+        return list_articles
+    
+    sub_categories = get_subcategories_list()
+    for subcat in sub_categories:
+        count = 1
+        while True:
+            current_url_jumbo = f"https://www.tiendasjumbo.co/{dep_cat[0]}/{dep_cat[1]}/{subcat}?initialMap=category-1,categoria&initialQuery={dep_cat[0]}/{dep_cat[1]}&map=category-1,category-2,category-3&page={count}"
+            try:
+                driver.get(current_url_jumbo)   
+            except WebDriverException as _:
+                crash_refresh_page()
+            ready_document()
+            try:
+                WebDriverWait(driver, 5).until(EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")))
+                break
+            except TimeoutException:
+                pass #               https://www.olimpica.com/supermercado/desayuno/lacteos-y-derivados-refrigerados?initialMap=c,c&initialQuery=supermercado/desayuno&map=category-1,category-2,category-3
+            
+            list_articles += get_elements(dep, cat, subcat)
+            count+=1
+    return list_articles
+
+def get_subcategories_list():
     tries = 0
     while True:
         try:
-            subcategories_object: list[WebElement] = WebDriverWait(driver, 30).until(
+            subcat_button: WebElement = WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//div[contains(@class,'__container--category-3')]")))
+            driver.execute_script("arguments[0].scrollIntoView(true);",subcat_button)
+            driver.execute_script("arguments[0].click();",subcat_button)
+            time.sleep(2)
+            scroll_height: WebElement = WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@class='vtex-search-result-3-x-filterContent']")))
+            scroll_element: WebElement = WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@data-testid='scrollable-element']")))
+            driver.execute_script("arguments[0].scrollIntoView(true);",scroll_element)
+            time.sleep(1)
+            for i in [1,2,3]:
+                driver.execute_script("arguments[0].scrollTop = arguments[1]",scroll_element,scroll_height.size["height"]*(i/3))
+                time.sleep(1)
+            ready_document()
+            time.sleep(2)
+            sub_categories_objects: list[WebElement] = WebDriverWait(driver, 30).until(
                 EC.presence_of_all_elements_located(
-                    (By.XPATH, "//div[@class='search-multiple-navigator']/fieldset[1]/div/a")))
-            break
+                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@data-testid='scrollable-element']//label")))
+            return [str(val.get_attribute("for")).replace("category-3-","") for val in sub_categories_objects]
         except TimeoutException as e:
-            pass
-        try:
-            subcategories_object: list[WebElement] = WebDriverWait(driver, 30).until(
-                EC.presence_of_all_elements_located(
-                    (By.XPATH, "//div[@class='landing__slider-boxes-content slick-initialized slick-slider']//a")))
-            break
-        except TimeoutException as e:
-            if tries == 2: print(e,e.args);exit()
+            if tries == 3: print(e,e.args);exit()
             tries+=1
             time.sleep(5)
             driver.refresh()
             ready_document()
-    sub_categories = [val.get_attribute("href") for val in subcategories_object]
-    for subcat in sub_categories:
-        current_url_jumbo = subcat
-        try:
-            driver.get(subcat)
-            ready_document()
-        except TimeoutException:
-            time.sleep(10)
-            driver.get(subcat)
-        try:
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='empty-search-message']/div[text()='¡Oops!']")))
-            print(current_url_jumbo)
-            continue
-        except TimeoutException as _:
-            pass   
-        get_elements(dep, cat, re.sub(".+\/","",subcat))
-
-
-
-def internet_on():
-   try:
-       response = urlopen('https://www.google.com/', timeout=10)
-       return True
-   except Exception as e: 
-       return False
-
-def ready_document(tries=0):
-    while not internet_on(): continue
-    if tries == 4:
-        return
-    timeout = time.time() + 2*60
-    while time.time() <= timeout:
-        try:
-            page_state = driver.execute_script('return document.readyState;')
-            if page_state == 'complete':
-                tries = 4
-                return
         except WebDriverException as _:
+            if tries == 3: print(e,e.args);exit()
+            tries+=1
             crash_refresh_page()
-    if tries < 4:
-        driver.refresh()
-        ready_document(tries+1)
-    print("La página se cayó")
-    duration = 5  # seconds
-    freq = 440  # Hz
-    if sys.platform == 'linux':
-        os.system('play -nq -t alsa synth {} sine {}'.format(duration, freq))
-    exit()
+            ready_document()
 
-
-def crash_refresh_page():
-    global driver
-    driver = webdriver.Chrome(
-        ChromeDriverManager().install(), options=chrome_options)
-    driver.maximize_window()
-    driver.get(current_url_jumbo)
-    ready_document()
     
 
 def esperar_none():
@@ -168,41 +157,33 @@ def esperar_none():
             continue
     
 
-def scroll_down(espera=0,init=0):
+def scroll_down(final):
     ready_document()
-    time.sleep(espera)
-    try:
-        final_heigth:int = WebDriverWait(driver,30).until(lambda _:
-            driver.execute_script("return document.body.scrollHeight")-heigth)
-    except TimeoutException as _:
-        driver.refresh()
-        ready_document()
-        scroll_down(2)
-    step = int(heigth*0.025)
-    for val in range(init,final_heigth,step):
+    step = int(final*0.005)
+    for val in range(0,final,step):
         driver.execute_script(f"window.scrollTo(0, {val});")
-        try:
-            driver.find_element_by_xpath(
-            "//div[@class='loader_more']/div[@class='loader' and contains(@style,'display: block')]")
-            esperar_none()
-        except NoSuchElementException:
-            continue
-    if driver.execute_script("return document.body.scrollHeight") - final_heigth > heigth:
-        scroll_down(0,final_heigth)
-        
 
 def get_elements(dep, cat, subcat):
+    global driver
     scroll_down(2)
     list_elements = []
     try:
-        elements: List[WebElement] = WebDriverWait(driver,10).until(lambda _: 
-                driver.find_elements_by_xpath("//div[@class='product-item__bottom']"))
+        container:WebElement = WebDriverWait(
+            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
+        driver.execute_script("arguments[0].scrollIntoView(true);", container)
+        scroll_down(2,final_heith=container.size["height"])
+        elements: list[WebElement] = WebDriverWait(driver,10).until(lambda _: 
+                container.find_elements_by_xpath("div/section/a/article/div"))
+        list_elements = []
     except WebDriverException as e:
-        print(e,e.args)
-        crash_refresh_page()
+        driver= crash_refresh_page(driver,current_url_jumbo)
         scroll_down(2)
-        elements: List[WebElement] = WebDriverWait(driver,10).until(lambda _: 
-                driver.find_elements_by_xpath("//div[@class='product-item__bottom']"))
+        container:WebElement = WebDriverWait(
+            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
+        driver.execute_script("arguments[0].scrollIntoView(true);", container)
+        scroll_down(2,final_heith=container.size["height"])
+        elements: list[WebElement] = WebDriverWait(driver,10).until(lambda _: 
+                container.find_elements_by_xpath("div/section/a/article/div"))
     for el in elements:
         try:
             driver.execute_script("arguments[0].scrollIntoView(true);",el)
@@ -234,8 +215,8 @@ def precio_promo(element: BeautifulSoup):
     try: # div/div/div/div[4]/div[2]/div/span
         return get_price(
             element.find_next(
-                "span", {"class":"product-prices__value product-prices__value--best-price"}
-            ).text)
+                "div", {"id":"items-price"}
+            ).find_next("div").find_next("div").text)
     except Exception as e:
         print(e,e.args)
     
@@ -245,8 +226,8 @@ def get_price(valor: str):
 
 def select_name(element: BeautifulSoup):
     try:
-        nombre_cantidad_unidad = element.find_next(
-            "a", {"class": "product-item__name"}).find("span").text.strip()
+        nombre_cantidad_unidad = element.find(
+            "span", {"class": "vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body"}).text.strip()
     except:
         print("NO se encontró el nombre")
         return ""
@@ -277,8 +258,7 @@ def nombre_cantidad(nom_cant: str):
 def precio_normal(element: BeautifulSoup):
     try:
         precio_normal = get_price(
-            element.find_next("div",{"class":"product-prices__price product-prices__price--former-price"})\
-                .find_next("span",{"class":"product-prices__value"}).text.strip())
+            element.find_next("div", {"id":"items-price"}).find_next("div",{"class":"tiendasjumboqaio-jumbo-minicart-2-x-price"}).text)
         return precio_normal
     except Exception as e :
         return ""
@@ -309,12 +289,9 @@ def to_data_base(data: pd.DataFrame):
     engine.dispose()
 
 
-
-driver = webdriver.Chrome(
-    ChromeDriverManager().install(), options=chrome_options)
-driver.maximize_window()
-driver.get(MAIN_PAGE)
+current_url_jumbo = MAIN_PAGE
+driver = init_scraping(current_url_jumbo)
 heigth: WebElement = WebDriverWait(driver, 20).until(EC.presence_of_element_located(
-            (By.ID, "footer"))).size["height"]
-
+            (By.XPATH, "//div[@data-hydration-id='store.home/$after_footer']/div[2]"))).size["height"]
+print(heigth)
 each_departments_categories()

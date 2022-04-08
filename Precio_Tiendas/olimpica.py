@@ -7,16 +7,13 @@ from sqlalchemy.exc import OperationalError
 from selenium import webdriver
 import pandas as pd
 import re
-from selenium.common.exceptions import InvalidSessionIdException, TimeoutException, WebDriverException
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.common.exceptions import  TimeoutException, WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 import sqlalchemy
-import gc
 import os
 
 from webdriver_manager.chrome import ChromeDriverManager
@@ -57,7 +54,6 @@ def each_departments_cat():
     ready_document()
     list_articles = []
     for dep,cats in dep_cat_elements.items():
-        if dep.lower() == 'supermercado' or dep.lower() == 'droguería': continue
         for cat in cats:
             current_url_olimpica = cat[1]
             try:
