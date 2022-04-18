@@ -1,5 +1,1 @@
-{
-  "olimpica":{"dep":[],"cat":[],"sub":[]},
-  "exito":{},
-  "jumbo":{}
-}
+{"Exito": false, "Olimpica": true, "Jumbo": false}

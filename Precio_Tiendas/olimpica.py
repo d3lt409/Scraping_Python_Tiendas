@@ -1,7 +1,6 @@
 from datetime import datetime
 import sys
 import time
-from typing import List, Tuple
 from bs4 import BeautifulSoup
 from sqlalchemy.exc import OperationalError
 from selenium import webdriver
