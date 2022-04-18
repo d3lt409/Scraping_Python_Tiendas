@@ -1,0 +1,15 @@
+*.xlsx
+chromedriver.exe
+chrome/chromedriver
+.~lock.wplay.xlsx#
+codere.xlsx
+chrome/geckodriver
+*.tar.gz
+*.TIF
+*.geojson
+LC08_*.txt
+.vscode/settings.json
+prueb*.py
+prueba.py
+driver
+shutdown.py
