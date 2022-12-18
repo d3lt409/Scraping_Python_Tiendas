@@ -13,4 +13,4 @@ prueb*.py
 prueba.py
 driver
 shutdown.py
-__pycache__
+*__pycache__
