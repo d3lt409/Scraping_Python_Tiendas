@@ -76,6 +76,13 @@ def each_departments_cat():
             current_url_olimpica = cat[1]
             try:
                 driver.get(current_url_olimpica)
+                ready_document()
+                try:
+                    WebDriverWait(driver, 5).until(EC.presence_of_element_located(
+                        (By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")))
+                    continue
+                except TimeoutException:
+                    pass
             except WebDriverException as _:
                 crash_refresh_page()
             ready_document()
@@ -117,6 +124,7 @@ def get_subcategories(dep,cat,url:str):
             current_url_olimpica = f"https://www.olimpica.com/{dep_cat[0]}/{dep_cat[1]}/{subcat}?initialMap=category-1,categoria&initialQuery={dep_cat[0]}/{dep_cat[1]}&map=category-1,category-2,category-3&page={count}"
             try:
                 driver.get(current_url_olimpica)   
+                ready_document()
             except WebDriverException as _:
                 driver = crash_refresh_page(driver,current_url_olimpica)
                 ready_document()
@@ -136,8 +144,10 @@ def get_subcategories(dep,cat,url:str):
 def get_subcategories_list():
     global driver
     tries = 0
+    
     while True:
         try:
+            print(current_url_olimpica)
             subcat_button: WebElement = WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//div[contains(@class,'--category-3')]/div/div")))
