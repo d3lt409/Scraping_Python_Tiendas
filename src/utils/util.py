@@ -29,6 +29,7 @@ chrome_options.add_argument("--log-level=3")
 
 
 CONNECTION_URI = "sqlite:///db/Precios.sqlite"
+CLICK = "arguments[0].click();"
 
 class DataBase():
     """Genera un objeto de la base de datos
@@ -75,7 +76,7 @@ class DataBase():
     def init_database_ara(self):
 
         query = f"""
-            CREATE TABLE IF NOT EXISTS Ara (
+            CREATE TABLE IF NOT EXISTS {self.name_data_base} (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
                 Categoria text,
                 Sub_categoria text,
@@ -86,6 +87,26 @@ class DataBase():
                 Fecha_de_lectura TEXT,
                 Hora_de_lectura TEXT,
                 UNIQUE(Nombre,Categoria,Cantidad,Fecha_de_lectura) ON CONFLICT IGNORE
+            );
+            """
+        self.engine.execute(query)
+        
+    def init_database_olimpica(self):
+
+        query = f"""
+            CREATE TABLE IF NOT EXISTS {self.name_data_base} (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+                Departamento text,
+                Categoria text,
+                Sub_categoria text,
+                Nombre_producto text,
+                Precio_oferta REAL,
+                Cantidad REAL,
+                Unidad text,
+                Precio_normal REAL,
+                Fecha_resultados TEXT,
+                Hora_resultados TEXT,
+                UNIQUE(Nombre_producto,Categoria,Fecha_resultados) ON CONFLICT IGNORE
             );
             """
         self.engine.execute(query)
@@ -106,10 +127,13 @@ class DataBase():
     
 
     def consulta_sql_unica(self,sql:str):
-        with self.fengine.connect() as conn:
-            res = conn.execute(text(sql)).fetchone()[0]
-            if res: return str(res)
+        with self.engine.connect() as conn:
+            res = conn.execute(text(sql)).first()
+            if res: return res
             return None 
+    
+    def close(self):
+        self.engine.dispose()
 
 def init_scraping(page: str, name_database:str):
     while not internet_on(): continue
@@ -149,7 +173,7 @@ def crash_refresh_page(driver: WebDriver, current_url):
     while not internet_on():
         continue
     try:
-        driver.close()
+        driver.quit()
     except WebDriverException:
         pass
     driver = webdriver.Chrome(

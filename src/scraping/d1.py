@@ -1,12 +1,10 @@
 from datetime import datetime                                        # To call when the code runs the webscrapping
-import time                                                          # To allow the code to wait a few second between some lines
-from bs4 import BeautifulSoup, element                                    # To do the scrapping
-from bs4.element import PageElement, ResultSet                       # To scrolldown help from functions when you type (pageElement:single outcome, ResultSet: several outcomes)
+import time                                                          # To allow the code to wait a few second between some lines                 # To scrolldown help from functions when you type (pageElement:single outcome, ResultSet: several outcomes)
 import pandas as pd                                                  # To define de data frame
-import re            
-# To Use regular expressions
+import re                                                            # To Use regular expressions
+
 import sys; sys.path.append(".")
-from src.utils.util import init_scraping
+from src.utils.util import init_scraping, CLICK
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -14,17 +12,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
 FILENAME = "d1_precios.xlsx"                                         # String with the name of the excel file
-
-driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
 EMAIL = 'dfzd1984@gmail.com'                                            
 PASW = '1234567'
 TIME_OUT = 30
 
 def login():
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located((
+    driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located((
         By.XPATH,"//span[@class='user__chevron__link']"))))   # Click on the begin session
     time.sleep(2)
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located((
+    driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located((
         By.XPATH,"/html/body/div[3]/div/div/div/button[3]"))))  # Click on the log in button
     time.sleep(4)
     
@@ -40,19 +36,19 @@ def login():
     email.send_keys(EMAIL)
     pasw.send_keys(PASW)
     
-    driver.execute_script("arguments[0].click();",driver.find_element(By.XPATH,"//*[@id='signup']/div[3]/div/div/div/div/button"))  # click on the login
+    driver.execute_script(CLICK,driver.find_element(By.XPATH,"//*[@id='signup']/div[3]/div/div/div/div/button"))  # click on the login
     time.sleep(3)
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located(
+    driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located(
                         (By.ID,"card-operation-model-DELIVERY"))))  #clear delivery way
     time.sleep(3)
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located(
+    driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(EC.presence_of_element_located(
         (By.XPATH,"/html/body/div[5]/div/div[2]/div/div[2]/div[2]/div[1]/div/div"))))   # select adress
 
     
     
 def categoires():
     #N=the number of categories the Bot encounter
-    driver.execute_script("arguments[0].click();",
+    driver.execute_script(CLICK,
             driver.find_element(By.XPATH, "//div[@class='generalHeader__mainMenuBtn']")) # get into categories
     
     time.sleep(3)
@@ -62,21 +58,22 @@ def categoires():
     cat_list:list[str] = [el.text for el in cat_list_object]
 
     category = cat_list.pop(0) # Function "pop" take out the defined position, in this case the first position. In This case is "alimentos y despensa" when the code was developed
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
+    driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//li[@class='categories-menu__item'][contains(text(),'{category}')]")))) # Click on the first category 
-    driver.execute_script("arguments[0].click();",WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
+    driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//h4[@class='categoriesNav-Header__subtitle'][contains(text(),'{category}')]")))) 
     cat_products = get_elements(category,[]) # function to Download the webpage information in the category into cat_products object
     
     for name in cat_list:
-        driver.execute_script("arguments[0].click();",WebDriverWait(driver,TIME_OUT).until(
+        driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(
             EC.presence_of_element_located((By.XPATH,"//div[@class='generalHeader__mainMenuBtn']"))))
-        driver.execute_script("arguments[0].click();",WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
+        driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//li[@class='categories-menu__item'][contains(text(),'{name}')]")))) 
-        driver.execute_script("arguments[0].click();",WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
+        driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//h4[@class='categoriesNav-Header__subtitle'][contains(text(),'{name}')]")))) 
         cat_products+=get_elements(name,[])
-    return cat_products
+    df = pd.DataFrame(cat_products, columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
+    db.to_data_base(df)
 
 
 def get_elements(cat,list_elements:list):
@@ -90,7 +87,7 @@ def get_elements(cat,list_elements:list):
         cant_uni_prec =  cantidad_uni_prec(el.find_element(By.CSS_SELECTOR,"p>span").text)
         list_elements.append((nombre,cat,float(precio),int(cant_uni_prec[0]),cant_uni_prec[1],float(cant_uni_prec[2]),datetime.now().date()))
     try:
-        driver.execute_script("arguments[0].click();",WebDriverWait(driver,3).until(EC.presence_of_element_located((By.XPATH,"//li[@title='Next Page'][@aria-disabled='false']"))))
+        driver.execute_script(CLICK,WebDriverWait(driver,3).until(EC.presence_of_element_located((By.XPATH,"//li[@title='Next Page'][@aria-disabled='false']"))))
         return get_elements(cat,list_elements)
     except TimeoutException as _:
         return list_elements
@@ -101,20 +98,17 @@ def precio_promo(valor:str):  # function to download the prices data . Argumento
 
 def cantidad_uni_prec(valor:str):
     valor = valor.replace(".","").replace(",",".")
-    cant_uni = re.search("^\d+ (ml|l|g|un|m)",valor).group(0)  # ^: dice que comienza con un número; " ": este espacio extrae; "ml|l|g|un|m": son las diferentes uniandes de medida
-    valor = valor.replace(cant_uni,"")
-    preci_uni = re.search("\d+(\.\d+){0,1}",valor).group(0) # {0,1}:  esto define el rango de la longitud de números que trae dentro de (\.\d+)  
-    return cant_uni.split()+[preci_uni]
-
-
+    uni = re.search("(?<=\d )[a-zA-Z]",valor).group(0)
+    cant = re.search("^\d+\.\d+|^\d+",valor).group(0)
+    preci_uni = re.search("(?<=\$ ).+(?=\))",valor).group(0) # {0,1}:  esto define el rango de la longitud de números que trae dentro de (\.\d+)  
+    return cant,uni,preci_uni
     
 def main():
     login()
-    df = pd.DataFrame(categoires(), columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
-    #print(df)
     db.init_database_d1()
-    db.to_data_base(df)
+    categoires()
+    db.close()
     driver.close()
 
-    
+driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
 main()
