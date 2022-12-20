@@ -162,13 +162,13 @@ def get_subcategories_list():
                     (By.XPATH, "//div[contains(@class,'--category-3')]//div[@data-testid='scrollable-element']//label")))
             return [str(val.get_attribute("for")).replace("category-3-","") for val in sub_categories_objects]
         except TimeoutException as e:
-            if tries == 3: print(e,e.args,"sub_cat timeout");e.with_traceback(e.__traceback__)
+            if tries == 3: print(e,e.args,"sub_cat timeout");raise e.with_traceback(e.__traceback__)
             tries+=1
             time.sleep(5)
             driver.refresh()
             ready_document()
         except WebDriverException as e:
-            if tries == 3: print(e,e.args,"sub_cat web_driver");e.with_traceback(e.__traceback__)
+            if tries == 3: print(e,e.args,"sub_cat web_driver");raise e.with_traceback(e.__traceback__)
             tries+=1
             driver = crash_refresh_page(driver,current_url_olimpica)
             ready_document()
