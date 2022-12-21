@@ -131,6 +131,14 @@ class DataBase():
             res = conn.execute(text(sql)).first()
             if res: return res
             return None 
+        
+    def last_item_db(self):
+     
+        res = self.consulta_sql_unica(f"""select Departamento,Categoria,Sub_categoria from {self.name_data_base} 
+                where Fecha_resultados = CURRENT_DATE AND id = (select max(id) from {self.name_data_base});""")
+        if res:
+            res = dict(res)
+        return res
     
     def close(self):
         self.engine.dispose()
@@ -190,3 +198,4 @@ def internet_on():
         return True
     except Exception as e:
         return False
+

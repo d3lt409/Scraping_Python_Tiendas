@@ -1,9 +1,7 @@
 from datetime import datetime
-import json
-import time
-from bs4 import BeautifulSoup
+import json, time, re, os
 import pandas as pd
-import re
+
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
@@ -23,7 +21,7 @@ COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Pre
 
 
 def each_departments_categories():
-    global current_url_jumbo
+    global current_url_jumbo, driver
     ready_document(driver,current_url_jumbo)
     dep_button:WebElement = WebDriverWait(driver,30).until(EC.presence_of_element_located(
                 (By.XPATH,"//*[@id='menu-item-music-store']")
@@ -47,42 +45,25 @@ def each_departments_categories():
         except TimeoutException as _:
             dep_cat_elements[text] = ["",a]
     list_articles = []
-    dep_list=cat_list=sub_list  = None
-    if not config["Jumbo"]:
-        dep_list,cat_list,sub_list = consulta_ultima_peticion()
+    row = db.last_item_db()
     for dep,cats in dep_cat_elements.items():
-        if dep in dep_list: continue
-        for cat in cats:
-            if cat[0] in cat_list: continue
-            
-            current_url_jumbo = cat[1]
+        if row and "Departamento" in row and row["Departamento"] != dep: continue
+        elif row and "Departamento" in row: del row["Departamento"]
+        for cat,url in cats:
+            if row and "Categoria" in row and row["Categoria"] != cat: continue
+            elif row and "Categoria" in row: del row["Categoria"]
+            current_url_jumbo = url
             try:
                 driver.get(current_url_jumbo)
             except WebDriverException as _:
-                crash_refresh_page(driver,current_url_jumbo)
+                driver = crash_refresh_page(driver,current_url_jumbo)
             ready_document(driver,current_url_jumbo)
-            list_articles+=get_subcategories(dep,cat[0],cat[1],sub_list)
+            list_articles+=get_subcategories(dep,cat,url,row)
 
     return list_articles
 
-def consulta_ultima_peticion():
-    fecha = db.consulta_sql_unica("select max(Fecha_resultados) FROM Jumbo;")
-    hora = db.consulta_sql_unica(f"select max(Hora_resultados) FROM Jumbo where Fecha_resultados = {fecha!r};")
-    ult_dep = db.consulta_sql_unica(f"SELECT Departamento from Jumbo where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r};")
-    ult_cat = db.consulta_sql_unica(f"SELECT Categoria from Jumbo where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r} and Departamento= {ult_dep!r};")
-    ult_sub = db.consulta_sql_unica(f"""SELECT Sub_categoria from Jumbo where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r} 
-            and Departamento= {ult_dep!r} and Categoria = {ult_cat!r};""")
-    
-    deps = [val[0] for val in db.consulta_sql(f"select DISTINCT Departamento FROM Jumbo where Departamento <> {ult_dep!r} and Fecha_resultados = {fecha!r};")
-                if val[0]] 
-    cats = [val[0] for val in db.consulta_sql(f"select DISTINCT Categoria FROM Jumbo where Departamento = {ult_dep!r} and Categoria <> {ult_cat!r} and Fecha_resultados = {fecha!r};")
-                if val[0]]
-    subs = [val[0] for val in db.consulta_sql(f"""select DISTINCT Sub_categoria FROM Jumbo where Departamento = {ult_dep!r} and Categoria = {ult_cat!r}
-            and Sub_categoria <> {ult_sub!r} and Fecha_resultados = {fecha!r};""") if val[0]]
-    return deps,cats,subs
 
-
-def get_subcategories(dep,cat,url,sub_list):
+def get_subcategories(dep,cat,url,row):
     global current_url_jumbo,driver
     ready_document(driver,current_url_jumbo)
     dep_cat = url.replace("https://www.tiendasjumbo.co/","").split("/")
@@ -113,7 +94,8 @@ def get_subcategories(dep,cat,url,sub_list):
     sub_categories = get_subcategories_list()
     tries= 0
     for subcat in sub_categories:
-        if subcat in sub_list: continue
+        if row and "Sub_categoria" in row and row["Sub_categoria"] != subcat: continue
+        elif row : row = None
         count = 1
         while True:
             current_url_jumbo = f"https://www.tiendasjumbo.co/{dep_cat[0]}/{dep_cat[1]}/{subcat}?initialMap=category-1,categoria&initialQuery={dep_cat[0]}/{dep_cat[1]}&map=category-1,category-2,category-3&page={count}"
@@ -299,11 +281,11 @@ def precio_normal(element: BeautifulSoup):
     except Exception as e :
         return ""
 
-with open("config.json","r") as json_path:
+with open(os.path.join(os.getcwd(),"config.json"),"r") as json_path:
     config:dict = json.load(json_path)
 current_url_jumbo = MAIN_PAGE
 driver,db = init_scraping(current_url_jumbo,"Jumbo")
 each_departments_categories()
 config["Jumbo"] = True
-with open("config.json","w") as writer:
+with open(os.path.join(os.getcwd(),"config.json"),"w") as writer:
         json.dump(config,writer)
