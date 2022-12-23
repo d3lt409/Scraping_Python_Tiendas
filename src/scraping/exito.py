@@ -1,16 +1,15 @@
 import sys
 sys.path.append(".")
-from src.utils.util import init_scraping, ready_document, crash_refresh_page
-from copy import deepcopy
+from src.utils.util import (
+    init_scraping, ready_document, 
+    crash_refresh_page)
 from datetime import datetime
 import json
 import time
 import re
 import gc
-
-from bs4 import BeautifulSoup
 import pandas as pd
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import TimeoutException, WebDriverException,NoSuchElementException,StaleElementReferenceException
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -27,14 +26,11 @@ COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Pre
 
 
 def for_each_city():
-    list_products = []
-
-    list_products += each_departments_cat_sub("Bogota")
+    each_departments_cat_sub("Bogota")
     config["Exito"] = True
-    with open("config.json", "w") as writer:
+    with open("src/assets/config.json", "w") as writer:
         json.dump(config, writer)
     driver.close()
-    return list_products
 
 
 def each_departments_cat_sub(city: str):
@@ -43,85 +39,73 @@ def each_departments_cat_sub(city: str):
     tries = 0
     while True:
         try:
-            dep_button: WebElement = WebDriverWait(driver, 30).until(
+            dep_button: WebElement = WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.ID, "category-menu")))
-            driver.execute_script("arguments[0].click();", dep_button)
+            dep_button.click()
+            dep_element_object: list[WebElement] = WebDriverWait(driver, 20).until(
+                EC.presence_of_all_elements_located(
+                    (By.XPATH, "//p[contains(@id,'undefined-nivel2-')]")))
             break
         except TimeoutException as e:
-            if tries == 2:
-                e.with_traceback()
+            if tries == 3: 
+                if tries == 5: raise e.with_traceback(e.__traceback__)
+                tries+=1
+                driver = crash_refresh_page(driver,current_url_exito)
+                ready_document(driver,current_url_exito)
             tries += 1
             driver.refresh()
+        except Exception as e:
+            if tries >= 3: raise e.with_traceback(e.__traceback__)
+            tries += 1
+            driver = crash_refresh_page(driver,current_url_exito)
+            ready_document(driver,current_url_exito)
 
-    dep_element_object: list[WebElement] = WebDriverWait(driver, 30).until(
-        EC.presence_of_all_elements_located(
-            (By.XPATH, "//li[@class='exito-category-menu-3-x-itemCategory']/p")))
+    
     dep_cat_elements: dict[dict[str, list[tuple[str]]]] = {}
     for el in dep_element_object:
         ActionChains(driver).move_to_element(el).perform()
-        elementos: list[WebElement] = WebDriverWait(driver, 30).until(EC.presence_of_all_elements_located(
+        elementos: list[WebElement] = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located(
             (By.XPATH, "//div[@class='exito-category-menu-3-x-itemSideMenu']")))
         dep_cat_elements[el.text] = {}
         for elemento in elementos:
-            a: list[WebElement] = WebDriverWait(driver, 30).until(
+            a: list[WebElement] = WebDriverWait(driver, 20).until(
                 lambda _: elemento.find_elements(By.TAG_NAME , "a")
             )
             if a[0].get_attribute("href") == "":
                 continue
 
-            dep_cat_elements[el.text][a[0].text] = [(val.text, val.get_attribute("href")) for val in a[1:] if
-                                                    len(val.get_attribute("href").replace(MAIN_PAGE, "").split("/")) > 1]
+            dep_cat_elements[el.text][a[0].text] = \
+                [(val.text, val.get_attribute("href")) \
+                 for val in a[1:] \
+                     if len(val.get_attribute("href").replace(MAIN_PAGE, "").split("/")) > 1]
             if len(dep_cat_elements[el.text][a[0].text]) == 0:
                 del dep_cat_elements[el.text][a[0].text]
 
     ready_document(driver, current_url_exito)
-    list_articles = []
-    if len(list(config["Exito"].keys())) == 0:
-        config["Exito"] = dep_cat_elements
-    config_copy = deepcopy(config) 
-    for dep, cats in config_copy["Exito"].items():
+    row = db.last_item_db()
+    for dep, cats in dep_cat_elements.items():
+        if row and "Departamento" in row and row["Departamento"] != dep: continue
+        elif row and "Departamento" in row: del row["Departamento"]
         for cat, subs in cats.items():
-            while len(subs) > 0:
-                sub = subs.pop()
-                if len(sub[1].replace(MAIN_PAGE, "").split("/")) == 1:
+            if row and "Categoria" in row and row["Categoria"] != cat: continue
+            elif row and "Categoria" in row: del row["Categoria"]
+
+            for sub, href in subs:
+                if row and "Sub_categoria" in row and row["Sub_categoria"] != sub: continue
+                elif row : row = None
+                if len(href.replace(MAIN_PAGE, "").split("/")) == 1 or sub == "Ver todo":
                     continue
-                current_url_exito = sub[1]
-                try:
-                    driver.get(current_url_exito)
-                except WebDriverException as _:
-                    driver = crash_refresh_page(driver, current_url_exito)
+                current_url_exito = href
+                while True:
+                    try:
+                        driver.get(current_url_exito)
+                        break
+                    except WebDriverException as _:
+                        driver = crash_refresh_page(driver, current_url_exito)
+                        ready_document(driver,current_url_exito)
                 ready_document(driver, current_url_exito)
-                list_articles += sub_categories(dep, cat, sub[0])
-                config["Exito"][dep][cat] = subs
-                with open("config.json", "w") as writer:
-                    json.dump(config, writer)
-            del config["Exito"][dep][cat]
-            with open("config.json", "w") as writer:
-                    json.dump(config, writer)
-        del config["Exito"][dep]
-        with open("config.json", "w") as writer:
-                json.dump(config, writer)
-    return list_articles
+                sub_categories(dep, cat, sub)
 
-
-def consulta_ultima_peticion():
-    fecha = db.consulta_sql_unica("select max(Fecha_resultados) FROM Exito;")
-    hora = db.consulta_sql_unica(
-        f"select max(Hora_resultados) FROM Exito where Fecha_resultados = {fecha!r};")
-    ult_dep = db.consulta_sql_unica(
-        f"SELECT Departamento from Exito where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r};")
-    ult_cat = db.consulta_sql_unica(
-        f"SELECT Categoria from Exito where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r} and Departamento= {ult_dep!r};")
-    ult_sub = db.consulta_sql_unica(f"""SELECT Sub_categoria from Exito where Hora_resultados = {hora!r} and Fecha_resultados = {fecha!r} 
-            and Departamento= {ult_dep!r} and Categoria = {ult_cat!r};""")
-
-    deps = [val[0] for val in db.consulta_sql(f"select DISTINCT Departamento FROM Exito where Departamento <> {ult_dep!r};")
-            if val[0]]
-    cats = [val[0] for val in db.consulta_sql(f"select DISTINCT Categoria FROM Exito where Departamento = {ult_dep!r} and Categoria <> {ult_cat!r};")
-            if val[0]]
-    subs = [val[0] for val in db.consulta_sql(f"""select DISTINCT Sub_categoria FROM Exito where Departamento = {ult_dep!r} and Categoria = {ult_cat!r}
-            and Sub_categoria <> {ult_sub!r};""") if val[0]]
-    return deps, cats, subs
 
 
 def sub_categories(departamento, categoria: str, subcategoria):
@@ -129,7 +113,6 @@ def sub_categories(departamento, categoria: str, subcategoria):
     ready_document(driver, current_url_exito)
     count = 1
     url = current_url_exito
-    listado = []
     tries = 0
     while True:
         if (current_url_exito.__contains__("page=")):
@@ -142,7 +125,7 @@ def sub_categories(departamento, categoria: str, subcategoria):
         try:
             driver.get(current_url_exito)
             ready_document(driver, current_url_exito)
-            WebDriverWait(driver, 50).until(EC.presence_of_element_located(
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located(
                 (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")))
         except TimeoutException as _:
             if tries == 2:
@@ -153,13 +136,12 @@ def sub_categories(departamento, categoria: str, subcategoria):
             continue
         try:
             WebDriverWait(driver, 3).until(EC.presence_of_element_located(
-                (By.XPATH, "//h2[@class='tc fw1 exito-search-result-4-x-notFoundText']")))
+                (By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")))
             break
         except TimeoutException:
             pass
-        listado += get_elements(departamento, categoria, subcategoria)
+        get_elements(departamento, categoria, subcategoria)
         count += 1
-    return listado
 
 
 def scroll_down(time_limit, init=0, final_heith=0):
@@ -167,123 +149,120 @@ def scroll_down(time_limit, init=0, final_heith=0):
     if (final_heith == 0):
         final_heith = driver.execute_script(
             "return document.body.scrollHeight")-heigth
-    step = int(final_heith*0.003)
+    step = int(final_heith*0.01)
     for val in range(init, final_heith, step):
         driver.execute_script(f"window.scrollTo(0, {val});")
 
 
-def elementos_cargados():
-    global driver
-    tries = 0
-    while tries < 3:
-        try:
-            WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                (By.XPATH,"//div[@class='exito-filters-0-x-filters--layout ']")))
-            break
-        except TimeoutException as _:
-            tries += 1
-            driver = crash_refresh_page(driver, current_url_exito)
-            ready_document(driver, current_url_exito)
-    return tries
 
 
 def get_elements(dep, cat, subcat):
+    global driver
+    time.sleep(2)
     ready_document(driver, current_url_exito)
-    if elementos_cargados() == 3:
-        return []
     list_elements = []
-    try:
-        container: WebElement = WebDriverWait(
-            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
-        driver.execute_script("arguments[0].scrollIntoView(true);", container)
-        final_height: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-            (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")))
-        scroll_down(2, final_heith=final_height.size["height"])
-        elements: list[WebElement] = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located(
-            (By.XPATH, "//*[@id='gallery-layout-container']/div/section/a/article")))
+    tries = 1
+    while True:
+        try:
+            container: WebElement = WebDriverWait(
+                driver, 20).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
 
-    except WebDriverException as _:
-        driver.refresh()
-        time.sleep(2)
-        ready_document(driver, current_url_exito)
-        container: WebElement = WebDriverWait(
-            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
-        driver.execute_script("arguments[0].scrollIntoView(true);", container)
-        final_height: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-            (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")))
-        scroll_down(2, final_heith=final_height.size["height"])
-        elements: list[WebElement] = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located(
-            (By.XPATH, "//*[@id='gallery-layout-container']/div/section/a/article")))
+            driver.execute_script("arguments[0].scrollIntoView(true);", container)
+
+            final_height: WebElement = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+                (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")))
+            scroll_down(2, final_heith=final_height.size["height"])
+            time.sleep(1)
+            elements: list[WebElement] = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")))
+            break
+        except TimeoutException as e:
+            if tries == 3: 
+                try:
+                    WebDriverWait(driver, 5).until(EC.presence_of_element_located(
+                        (By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")))
+                    return
+                except TimeoutException:
+                    pass
+                driver = crash_refresh_page(driver,current_url_exito)
+                time.sleep(2)
+            tries+= 1
+            driver.refresh()
+            ready_document(driver, current_url_exito)
+        except (WebDriverException,StaleElementReferenceException) as e:
+            if tries == 3: raise e.with_traceback(e.__traceback__)
+            tries+=1
+            driver = crash_refresh_page(driver,current_url_exito)
+            time.sleep(2)
+            ready_document(driver, current_url_exito)
+    time.sleep(2)
     for el in elements:
         try:
             driver.execute_script("arguments[0].scrollIntoView(true);", el)
-            element = BeautifulSoup(el.get_attribute('innerHTML'), 'html5lib')
         except (WebDriverException, TimeoutException) as e:
             print(e, e.args)
             continue
-
-        precio = select_price(element)
-        nombre_cantidad_unidad = nombre_cantidad(select_name(element))
-        precio_norm = precio_normal(element)
+        
+        name = select_name(el)
+        print(name, current_url_exito)
+        precio = select_price(el)
+        cant,uni = cant_uni(name)
+        precio_norm = precio_normal(el)
         date = datetime.now()
-        if (len(nombre_cantidad_unidad) == 3):
-            list_elements.append(
-                (dep, cat, subcat, nombre_cantidad_unidad[0].replace("\n", " "), precio, nombre_cantidad_unidad[1],
-                 nombre_cantidad_unidad[2], precio_norm, date.date(), date.time()))
-        else:
-            list_elements.append(
-                (dep, cat, subcat, nombre_cantidad_unidad[0].replace("\n", " "), precio, nombre_cantidad_unidad[1], "",
-                 precio_norm, date.date(), date.time()))
+
+        list_elements.append(
+            (dep, cat, subcat, name.replace("\n", " "), precio, cant,
+                 uni, precio_norm, date.date(), date.time()))
+
     df = pd.DataFrame(list_elements, columns=COLUMNS)
     db.to_data_base(df)
     print(
         f"Productos guardados, para la categoría {cat} y subcategoría {subcat} a las {datetime.now()}")
-    return list_elements
 
 
-def select_price(element: BeautifulSoup):
+def select_price(element: WebElement):
     try:  # div/div/div/div[4]/div[2]/div/span
         return precio_promo(
-            element.find_next(
-                "div", {
-                    "class": "exito-vtex-components-4-x-selling-price flex items-center"}
-            ).find_next("div").find_next("span").text)
+            element.find_element(
+                By.CSS_SELECTOR,"div.exito-vtex-components-4-x-selling-price.flex.items-center> div > span").text.strip()
+        )
     except Exception as e:
-        print(e, e.args)
-        pass
+        print(e, e.args); 
+        return float(0)
     try:
         return precio_promo(
             element.find_next(
                 "div", {"class": "exito-vtex-components-4-x-PricePDP"}).find("span").text)
     except Exception as e:
-        print(e, e.args)
-        return ""
+        print(e, e.args);e.with_traceback(e.__traceback__)
 
 
-def select_name(element: BeautifulSoup):
+def select_name(element: WebElement):
     try:
-        nombre_cantidad_unidad = element.find_next(
-            "div", {"class": "exito-product-summary-3-x-nameContainer undefined "}).find("div").text.strip()
+        nombre_cantidad_unidad = element.find_element(By.CSS_SELECTOR,"div > div > h3 > span").text.strip()
+        return nombre_cantidad_unidad
     except:
         pass
     try:
-        nombre_cantidad_unidad = element.find(
-            "div", {"class": "exito-product-details-3-x-stylePlp"}).text
+        nombre_cantidad_unidad = element.find_element(
+            By.CSS_SELECTOR,  "div.exito-product-details-3-x-stylePlp").text.strip()
+        return nombre_cantidad_unidad
     except:
-        print("NO se encontró el nombre")
-        return ""
-    return nombre_cantidad_unidad
+        print("No se encontró el nombre")
+    
+    return ""
+    
+    
 
 
-def precio_normal(element: BeautifulSoup):
+def precio_normal(element: WebElement):
     try:
-        precio_normal = precio_promo(
-            element.find_next(
-                "div", {"class": "exito-vtex-components-4-x-list-price t-mini ttn strike"})
-            .find_next("span", {"class": "exito-vtex-components-4-x-currencyContainer"}).text.strip())
-        return precio_normal
-    except Exception as e:
+        el =  element.find_element(
+                By.CSS_SELECTOR,"div.exito-vtex-components-4-x-list-price.t-mini.ttn.strike > span")
+    except (NoSuchElementException, StaleElementReferenceException) as _:
         return ""
+    if el: return precio_promo(el.text.strip())
+    else: ""
 
 
 def precio_promo(valor: str):
@@ -291,54 +270,39 @@ def precio_promo(valor: str):
     return float(exp.replace(".", ""))
 
 
-def nombre_cantidad(nom_cant: str):
+def cant_uni(nom_cant: str):
     nom_cant = nom_cant.replace(" T/L/D TODOS LOS DIAS SIN REF", "")
-    try:
-        cant = re.search(
-            "(?<=. )(\d+[\.\d]* [a-zA-Z ]+(\.)*$|\d+[\.\d]*[a-zA-Z]+$)$", nom_cant).group(0)
-    except:
-        cant = "1 UN"
-    if (cant.isnumeric()):
-        cant += " UN"
-    if (len(cant.split()) == 1):
-        new_cant = re.search("\d+", cant).group(0)
-        cant = cant.replace(new_cant, f"{new_cant} ")
 
-    return [nom_cant]+cant.split()
+    cant = re.findall(
+        "(?<= )\d+[(,|\.)\d+]*(?:\s*[a-zA-Z]+)", nom_cant)
+    if len(cant) == 0: return "1","UN"
+    elif len(cant) == 1: 
+        return re.search("\d+[(,|\.)\d+]*", cant[0]).group(0).replace(",",".").strip(),\
+                re.search("[a-zA-Z]+", cant[0]).group(0).strip()
+    elif len(cant) > 1: 
+        return re.search("\d+[(,|\.)\d+]*", cant[-1]).group(0).replace(",",".").strip(),\
+                re.search("[a-zA-Z]+", cant[-1]).group(0).strip()
+    
 
 
 def main():
-    try:
-        df = pd.DataFrame(for_each_city(), columns=COLUMNS)
-    except Exception as e:
-        config["Exito"] = False
-        with open("config.json", "w") as writer:
-            json.dump(config, writer)
-        e.with_traceback(None)
-    try:
-        df_excel = pd.read_excel(f"Precio_Tiendas/excel_files/{FILENAME}")
-        df_total = pd.concat([df_excel, df])
-        df_total.to_excel(
-            f"Precio_Tiendas/excel_files/{FILENAME}", index=False)
-        print(f"Guardado a las {datetime.now()}")
-    except FileNotFoundError as _:
-        df.to_excel(
-            f"Precio_Tiendas/excel_files/{FILENAME}", index=False)
-        print(f"Guardado a las {datetime.now()}")
-    except Exception as _:
-        print("No se cargó el archivo")
+    # try:
+    for_each_city()
+    # except Exception as e:
+    #     e.with_traceback(e.__traceback__)
 
 
 try:
-    with open("config.json", "r") as json_path:
+    with open("src/assets/config.json", "r") as json_path:
         config: dict = json.load(json_path)
+    if config["Exito"]: print("Completo");exit()
     current_url_exito = MAIN_PAGE
     driver,db = init_scraping(current_url_exito, 'Exito')
-    heigth: int = WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+    heigth: int = WebDriverWait(driver, 15).until(EC.presence_of_element_located(
         (By.XPATH, "/html/body/div[2]/div/div[1]/div/div[5]"))).size["height"]
 
-    main()
+    
 except KeyboardInterrupt as _:
     pass
-
+main()
 gc.collect(2)
