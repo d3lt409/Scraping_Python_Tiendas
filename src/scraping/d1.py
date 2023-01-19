@@ -5,6 +5,7 @@ import re                                                            # To Use re
 
 import sys; sys.path.append(".")
 from src.utils.util import init_scraping, CLICK
+from mail.send_email import send_email,erorr_msg
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -47,6 +48,7 @@ def login():
     
     
 def categoires():
+    global lenth
     #N=the number of categories the Bot encounter
     driver.execute_script(CLICK,
             driver.find_element(By.XPATH, "//div[@class='generalHeader__mainMenuBtn']")) # get into categories
@@ -73,6 +75,7 @@ def categoires():
                         (By.XPATH, f"//h4[@class='categoriesNav-Header__subtitle'][contains(text(),'{name}')]")))) 
         cat_products+=get_elements(name,[])
     df = pd.DataFrame(cat_products, columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
+    lenth["Cantidad elementos"] = len(cat_products)
     db.to_data_base(df)
 
 
@@ -104,11 +107,14 @@ def cantidad_uni_prec(valor:str):
     return cant,uni,preci_uni
     
 def main():
-    login()
+    global driver, db
+    driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
+
     db.init_database_d1()
+    lenth["Cantidad"] = db.consulta_sql_unica("select count(*) from D1;")[0]
     categoires()
+    send_email("D1", lenth)
     db.close()
     driver.close()
-
-driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
-main()
+    
+lenth = {}

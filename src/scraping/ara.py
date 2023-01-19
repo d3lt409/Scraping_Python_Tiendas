@@ -78,8 +78,9 @@ def unidades_producto(valor:str):
         return "Unidad"
     
 
-
-driver,db = init_scraping("https://losprecios.co/ara_t2","Ara")
-db.init_database_ara()
-all_categories()
-driver.close()
+def main():
+    global driver,db
+    driver,db = init_scraping("https://losprecios.co/ara_t2","Ara")
+    db.init_database_ara()
+    all_categories()
+    driver.close()

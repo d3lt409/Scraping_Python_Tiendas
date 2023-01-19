@@ -39,19 +39,13 @@ def init_page():
     #     EC.presence_of_element_located(
     #         (By.XPATH, "//div[@class='nowrap olimpica-advance-geolocation-0-x-bottomBarContainer']"))))
 
-def last_item_db():
-     
-    res = db.consulta_sql_unica("""select Departamento,Categoria,Sub_categoria from Olimpica 
-            where Fecha_resultados = '2022-12-19' AND id = (select max(id) from Olimpica);""")
-    if res:
-        res = dict(res)
-    return res
 
 def each_departments_cat():
     global current_url_olimpica, row
      # //div[@class='pa4 pointer vtex-store-drawer-0-x-openIconContainer']
+    time.sleep(2)
     ready_document()
-    dep_button:WebElement = WebDriverWait(driver, 20).until(
+    dep_button:WebElement = WebDriverWait(driver, 25).until(
         EC.presence_of_element_located(
             (By.XPATH, "//div[@class='pa4 pointer vtex-store-drawer-0-x-openIconContainer']")))
     driver.execute_script("arguments[0].click();",dep_button)
@@ -66,11 +60,14 @@ def each_departments_cat():
         EC.presence_of_all_elements_located((By.XPATH, "//div[@class='olimpica-mega-menu-0-x-Level2Container']//a")))] 
     ready_document()
     list_articles = []
-    row = last_item_db()
+    row = db.last_item_db()
+
     for dep,cats in dep_cat_elements.items():
+        print(dep, row)
         if row and "Departamento" in row and row["Departamento"] != dep: continue
         elif row and "Departamento" in row: del row["Departamento"]
         for cat in cats:
+            print(cat, row)
             if row and "Categoria" in row and row["Categoria"] != cat[0]: continue
             elif row and "Categoria" in row: del row["Categoria"]
             current_url_olimpica = cat[1]
@@ -212,7 +209,7 @@ def ready_document(tries=0):
 
 def scroll_down(final):
     ready_document()
-    step = int(final*0.005)
+    step = int(final*0.009)
     for val in range(0,final,step):
         driver.execute_script(f"window.scrollTo(0, {val});")
         
@@ -271,7 +268,6 @@ def get_elements(dep, cat, subcat):
         list_elements.append((dep, cat, subcat, nombre, precio, cant, 
                                 uni, precio_norm, date.date(),date.time()))
 
-        print(list_elements)
     df = pd.DataFrame(list_elements, columns=COLUMNS)
     
     while True:
@@ -280,7 +276,7 @@ def get_elements(dep, cat, subcat):
             break
         except OperationalError as _:
             print("Base de datos bloquada, por favor guarde los cambios de donde la esté usando")
-    print(f"Productos guardados, en la categoría: {cat}, subcategoría: {subcat} a las {datetime.now()} la cantidad de {len(df)}")
+    print(f"Productos guardados,Departamento {dep} en la categoría: {cat}, subcategoría: {subcat} a las {datetime.now()} la cantidad de {len(df)}")
     return list_elements
 
 
@@ -330,14 +326,15 @@ def precio_normal(element: WebElement):
         return precio_normal
     except Exception as e :
         return ""
-    
+
+def main():
+    global driver, db
+    driver, db = init_scraping(current_url_olimpica, 'Olimpica')
+    init_page()
+    time.sleep(2)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+
+    each_departments_cat()
+
 row = None
 current_url_olimpica = MAIN_PAGE
-driver, db = init_scraping(current_url_olimpica, 'Olimpica')
-init_page()
-time.sleep(2)
-driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-heigth: WebElement = WebDriverWait(driver, 20).until(EC.presence_of_element_located(
-            (By.XPATH, "//div[@class='vtex-store-footer-2-x-footerLayout']"))).size["height"]
-
-each_departments_cat()

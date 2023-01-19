@@ -12,280 +12,263 @@ from selenium.webdriver.common.action_chains import ActionChains
 import sys
 sys.path.append(".")
 
-from src.utils.util import  crash_refresh_page, init_scraping,ready_document
+from src.utils.util import  Engine
 
-FILENAME = "jumbo_precios.xlsx"
 MAIN_PAGE = "https://www.tiendasjumbo.co"
 COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Precio_oferta", "Cantidad",
            "Unidad", "Precio_normal", "Fecha_resultados", "Hora_resultados"]
 
 
 def each_departments_categories():
-    global current_url_jumbo, driver
-    ready_document(driver,current_url_jumbo)
-    dep_button:WebElement = WebDriverWait(driver,30).until(EC.presence_of_element_located(
-                (By.XPATH,"//*[@id='menu-item-music-store']")
-            ))
-    time.sleep(2)
-    ActionChains(driver).click_and_hold(dep_button).perform()
-    dep_element_object:list[str] =[el.get_attribute("href") for el in WebDriverWait(driver, 30).until(
-        EC.presence_of_all_elements_located(
-            (By.XPATH, "//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item']/div/div/li//a"))) ] 
-    dep_cat_elements:dict[str,list[list[str]]] = {}
-    for a in dep_element_object:
-        el: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                    (By.XPATH, f"//a[@href='{a.replace(MAIN_PAGE,'')}']")))
-        text = el.text
-        ActionChains(driver).move_to_element(el).perform()
-        time.sleep(1)
-        try:
-            dep_cat_elements[text]= [
-                [ele.text,ele.get_attribute("href")] for ele in WebDriverWait(driver, 3).until(
-            EC.presence_of_all_elements_located((By.XPATH, "//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item tiendasjumboqaio-jumbo-main-menu-2-x-second_level tiendasjumboqaio-jumbo-main-menu-2-x-second_level--header-submenu-item']/li/div/span/a")))] 
-        except TimeoutException as _:
-            dep_cat_elements[text] = ["",a]
-    list_articles = []
-    row = db.last_item_db()
-    for dep,cats in dep_cat_elements.items():
-        if row and "Departamento" in row and row["Departamento"] != dep: continue
-        elif row and "Departamento" in row: del row["Departamento"]
-        for cat,url in cats:
-            if row and "Categoria" in row and row["Categoria"] != cat: continue
-            elif row and "Categoria" in row: del row["Categoria"]
-            current_url_jumbo = url
-            try:
-                driver.get(current_url_jumbo)
-            except WebDriverException as _:
-                driver = crash_refresh_page(driver,current_url_jumbo)
-            ready_document(driver,current_url_jumbo)
-            list_articles+=get_subcategories(dep,cat,url,row)
-
-    return list_articles
-
-
-def get_subcategories(dep,cat,url,row):
-    global current_url_jumbo,driver
-    ready_document(driver,current_url_jumbo)
-    dep_cat = url.replace("https://www.tiendasjumbo.co/","").split("/")
-    list_articles = []
-    if (len(dep_cat) != 2):
-        count = 1
-        while True:
-            if (url.__contains__("page=")): current_url_jumbo = re.sub("\d+$","",url)+str(count)
-            elif (url.__contains__("?")): current_url_jumbo = f"{url}&page={count}"
-            else : current_url_jumbo = f"{url}?page={count}"
-            
-            driver.get(current_url_jumbo)  
-            try:
-                ready_document(driver,current_url_jumbo)
-                WebDriverWait(driver, 25).until(EC.presence_of_element_located(
-                    (By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")))
-                return list_articles
-            except TimeoutException:
-                list_articles += get_elements(dep, cat, "")
-                count+=1
-            except WebDriverException as _:
-                if tries == 3: exit()
-                tries +=1
-                driver = crash_refresh_page(driver,current_url_jumbo)
-                time.sleep(4)
-                continue
-        
-    sub_categories = get_subcategories_list()
-    tries= 0
-    for subcat in sub_categories:
-        if row and "Sub_categoria" in row and row["Sub_categoria"] != subcat: continue
-        elif row : row = None
-        count = 1
-        while True:
-            current_url_jumbo = f"https://www.tiendasjumbo.co/{dep_cat[0]}/{dep_cat[1]}/{subcat}?initialMap=category-1,categoria&initialQuery={dep_cat[0]}/{dep_cat[1]}&map=category-1,category-2,category-3&page={count}"
-            try:
-                driver.get(current_url_jumbo)   
-                ready_document(driver,current_url_jumbo)
-                WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                    (By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")))
-                break
-            except TimeoutException as _:             
-                list_articles += get_elements(dep, cat, subcat)
-                count+=1
-                tries = 0
-            except WebDriverException as e:
-                if tries == 3: e.with_traceback()
-                tries +=1
-                driver = crash_refresh_page(driver,current_url_jumbo)
-                time.sleep(4)
-                continue
-    return list_articles
-
-def get_subcategories_list():
-    global driver
+    time.sleep(4)
     tries = 0
     while True:
         try:
-            subcat_button: WebElement = WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//div[contains(@class,'__container--category-3')]")))
-            driver.execute_script("arguments[0].scrollIntoView(true);",subcat_button)
-            driver.execute_script("arguments[0].click();",subcat_button)
-            time.sleep(2)
-            scroll_height: WebElement = WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@class='vtex-search-result-3-x-filterContent']")))
-            scroll_element: WebElement = WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@data-testid='scrollable-element']")))
-            driver.execute_script("arguments[0].scrollIntoView(true);",scroll_element)
-            time.sleep(1)
-            for i in [1,2,3]:
-                driver.execute_script("arguments[0].scrollTop = arguments[1]",scroll_element,scroll_height.size["height"]*(i/3))
-                time.sleep(1)
-            ready_document(driver,current_url_jumbo)
-            time.sleep(2)
-            sub_categories_objects: list[WebElement] = WebDriverWait(driver, 30).until(
-                EC.presence_of_all_elements_located(
-                    (By.XPATH, "//div[contains(@class,'--category-3')]//div[@data-testid='scrollable-element']//label")))
-            return [str(val.get_attribute("for")).replace("category-3-","") for val in sub_categories_objects]
+            dep_button:WebElement = engine.element_wait_searh(20,By.XPATH,"//*[@id='menu-item-music-store']")
+            ActionChains(engine.driver).click_and_hold(dep_button).perform()
+            dep_element_object:list[str] = [val.text for val in 
+                engine.elements_wait_searh(10,By.XPATH, "//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item']/div/div/li//a")]
+            break
         except TimeoutException as e:
-            if tries == 3: print(e,e.args);exit()
-            tries+=1
-            time.sleep(5)
-            driver.refresh()
-            ready_document(driver,current_url_jumbo)
-        except WebDriverException as _:
-            if tries == 3: print(e,e.args);exit()
-            tries+=1
-            driver = crash_refresh_page(driver,current_url_jumbo)
-            ready_document(driver,current_url_jumbo)
-    
+            if tries == 3: raise e.with_traceback(e.__traceback__)
+            tries += 1
+        except Exception as e:
+            if tries >= 3: raise e.with_traceback(e.__traceback__)
+            tries += 1
+            engine.crash_refresh_page()
+            engine.ready_document()
 
-def scroll_down(final,time_sleep=0):
-    time.sleep(time_sleep)
-    ready_document(driver,current_url_jumbo)
-    step = int(final*0.009)
-    for val in range(0,final,step):
-        driver.execute_script(f"window.scrollTo(0, {val});")
+    dep_cat_elements: dict[dict[str, list[tuple[str]]]] = {}
+    for el in dep_element_object:
+        el =  engine.element_wait_searh(10,By.XPATH, f"//ul[@class='tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu tiendasjumboqaio-jumbo-main-menu-2-x-nav_menu--header-submenu-item']/div/div/li//a[contains(text(),'{el}')]")
+        text = el.text
+        ActionChains(engine.driver).move_to_element(el).perform()
+        time.sleep(1)
+        try:
+            elementos = engine.elements_wait_searh(5,By.XPATH,  "//div[@class='tiendasjumboqaio-jumbo-main-menu-2-x-submenus_wrapper tiendasjumboqaio-jumbo-main-menu-2-x-submenus_wrapper--header-submenu-item']/div/div/ul/li/div")
+        except TimeoutException as _:
+            continue
+        dep_cat_elements[text] = {}
+        for elemento in elementos:
+            a: list[WebElement] = WebDriverWait(engine.driver, 10).until(
+                lambda _: elemento.find_elements(By.TAG_NAME , "a")
+            )
+            if a[0].get_attribute("href") == "":
+                continue
+            dep_cat_elements[text][a[0].text] = \
+                [(val.text, val.get_attribute("href")) \
+                 for val in a[1:] \
+                     if len(val.get_attribute("href").replace(MAIN_PAGE, "").split("/")) > 1]
+            if len(dep_cat_elements[text][a[0].text]) == 0:
+                del dep_cat_elements[text][a[0].text]
+    engine.ready_document()
+    row = engine.db.last_item_db()
+    for dep,cats in dep_cat_elements.items():
+        if row and "Departamento" in row and row["Departamento"] != dep: continue
+        elif row and "Departamento" in row: del row["Departamento"]
+        for cat,subs in cats.items():
+            if row and "Categoria" in row and row["Categoria"] != cat: continue
+            elif row and "Categoria" in row: del row["Categoria"]
+            for sub, href in subs:
+                if row and "Sub_categoria" in row and row["Sub_categoria"] != sub: continue
+                elif row : row = None
+                if len(href.replace(MAIN_PAGE, "").split("/")) == 1:
+                    continue
+                engine.current_url = href
+                engine.ready_document()
+                time.sleep(2)
+                get_subcategories(dep,cat,sub)
+
+
+
+def get_subcategories(dep,cat,sub):
+    engine.ready_document()
+    url = engine.current_url
+    count = 1
+    tries = 0
+    while True:
+        if (url.__contains__("page=")): engine.current_url = re.sub("\d+$","",url)+str(count)
+        elif (url.__contains__("?")): engine.current_url = f"{url}&page={count}"
+        else : engine.current_url = f"{url}?page={count}"
+        try:
+            engine.driver.get(engine.current_url)
+            time.sleep(3)
+            engine.ready_document()
+            time.sleep(2)
+            engine.element_wait_searh(15, By.ID,"gallery-layout-container")
+            get_elements(dep, cat, sub)
+            count+=1
+            continue
+        except TimeoutException:
+            try:
+                engine.element_wait_searh(2,By.XPATH,"//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")
+                return
+            except TimeoutException:
+                pass
+            try:
+                engine.element_wait_searh(2,By.XPATH,"//p[@class='lh-copy vtex-rich-text-0-x-paragraph vtex-rich-text-0-x-paragraph--not-found-opps']")
+                return
+            except TimeoutException as e:
+                if tries == 3: raise e.with_traceback(e.__traceback__)
+                engine.driver.refresh()
+                engine.ready_document()
+                tries+=1
+        except Exception as e:
+            if tries == 3: raise e.with_traceback(e.__traceback__)
+            tries +=1
+            engine.crash_refresh_page()
+            time.sleep(4)
+
+
+def scroll_down(time_limit, init=0, final_heith=0):
+    time.sleep(time_limit)
+    if (final_heith == 0):
+        final_heith = engine.driver.execute_script(
+            "return document.body.scrollHeight")-heigth
+    step = int(final_heith*0.03)
+    for val in range(init, final_heith, step):
+        engine.driver.execute_script(f"window.scrollTo(0, {val});")
+
+def charge_elements():
+    tries = 0
+    while True:
+        
+        try:
+            engine.ready_document()
+            container = engine.element_wait_searh(20, By.ID,"gallery-layout-container")
+            engine.driver.execute_script("arguments[0].scrollIntoView(true);", container)
+            scroll_down(2, final_heith=container.size["height"])
+            time.sleep(1)
+            elements = engine.elements_wait_searh(
+                15,By.CSS_SELECTOR,"div#gallery-layout-container > div > section > a > article")
+            break
+        except TimeoutException as e:
+            try:
+                time.sleep(2)
+                WebDriverWait(engine.driver, 10).until(EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")))
+                return
+            except TimeoutException:
+                pass
+            try:
+                WebDriverWait(engine.driver, 5).until(EC.presence_of_element_located(
+                    (By.XPATH, "//p[@class='lh-copy vtex-rich-text-0-x-paragraph vtex-rich-text-0-x-paragraph--not-found-opps']")))
+            except TimeoutException:
+                pass
+            if tries == 4: raise e.with_traceback(e.__traceback__)
+            if tries == 3: 
+                
+                engine.crash_refresh_page()
+                engine.ready_document()
+                time.sleep(2)
+                tries +=1
+            tries +=1
+            try:
+                engine.driver.refresh()
+                time.sleep(3)
+                engine.ready_document()
+            except Exception as e:
+                if tries==4: raise e.with_traceback(e.__traceback__)
+                engine.crash_refresh_page()
+                time.sleep(3)
+                engine.ready_document()
+                tries+=1
+            
+        except Exception as e:
+            if tries == 3: raise e.with_traceback(e.__traceback__)
+            tries +=1
+            engine.crash_refresh_page()
+            time.sleep(3)
+            engine.ready_document()
+    return elements
+
 
 def get_elements(dep, cat, subcat):
-    global driver
     list_elements = []
-    try:
-        container:WebElement = WebDriverWait(
-            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
-        driver.execute_script("arguments[0].scrollIntoView(true);", container)
-        final_height: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexColChild vtex-flex-layout-0-x-flexColChild--filter-content pb0']")))
-        scroll_down(final=container.size["height"],time_sleep= 2)
-        elements: list[WebElement] = WebDriverWait(driver,10).until(EC.presence_of_all_elements_located(
-            (By.XPATH,"//*[@id='gallery-layout-container']/div/section/a/article")
-        ))
-    except TimeoutException as _:
-        driver.refresh()
-        ready_document(driver,current_url_jumbo)
-        container:WebElement = WebDriverWait(
-            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
-        driver.execute_script("arguments[0].scrollIntoView(true);", container)
-        final_height: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexColChild vtex-flex-layout-0-x-flexColChild--filter-content pb0']")))
-        scroll_down(final=container.size["height"],time_sleep= 2)
-        elements: list[WebElement] = WebDriverWait(driver,10).until(EC.presence_of_all_elements_located(
-            (By.XPATH,"//*[@id='gallery-layout-container']/div/section/a/article")
-        ))
-    except WebDriverException as e:
-        driver= crash_refresh_page(driver,current_url_jumbo)
-        time.sleep(5)
-        container:WebElement = WebDriverWait(
-            driver, 50).until(EC.presence_of_element_located((By.ID, "gallery-layout-container")))
-        driver.execute_script("arguments[0].scrollIntoView(true);", container)
-        final_height: WebElement = WebDriverWait(driver, 30).until(EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexColChild vtex-flex-layout-0-x-flexColChild--filter-content pb0']")))
-        scroll_down(final=final_height.size["height"],time_sleep= 2)
-        elements: list[WebElement] = WebDriverWait(driver,10).until(EC.presence_of_all_elements_located(
-            (By.XPATH,"//*[@id='gallery-layout-container']/div/section/a/article")
-        ))
+    time.sleep(3)
+    elements = charge_elements()
+    time.sleep(2)
     for el in elements:
         try:
-            driver.execute_script("arguments[0].scrollIntoView(true);",el)
-            element = BeautifulSoup(el.get_attribute('innerHTML'),'html5lib')
+            engine.driver.execute_script("arguments[0].scrollIntoView(true);",el)
         except (WebDriverException,TimeoutException) as e:
             print(e,e.args)
             continue
-        
-        precio = precio_promo(element)
+
+        name = select_name(el)
+        precio = precio_promo(el)
         if not precio: continue
-        nombre_cantidad_unidad = nombre_cantidad(select_name(element))
-        precio_norm = precio_normal(element)
+        cant,uni = nombre_cantidad(name)
+        precio_norm = precio_normal(el)
         date = datetime.now()
-        if (len(nombre_cantidad_unidad) == 3):
-            list_elements.append(
-                (dep, cat, subcat, nombre_cantidad_unidad[0].replace("\n"," "), precio, nombre_cantidad_unidad[1], 
-                 nombre_cantidad_unidad[2], precio_norm, date.date(),date.time()))
-        else:
-            list_elements.append(
-                (dep, cat, subcat, nombre_cantidad_unidad[0].replace("\n"," "), precio, nombre_cantidad_unidad[1], "", 
-                 precio_norm, date.date(),date.time()))
+
+        list_elements.append((dep, cat, subcat, name.replace("\n"," "), precio, cant, 
+                uni, precio_norm, date.date(),date.time()))
+
         # print(list_elements)
     df = pd.DataFrame(list_elements, columns=COLUMNS)
-    db.to_data_base(df,'Jumbo')
-    print(f"Productos guardados, en la categoría: {cat}, subcategoría: {subcat} a las {datetime.now()}, la cantidad de {len(df)} productos")
-    return list_elements
+    engine.db.to_data_base(df)
+    print(f"Productos guardados, Departamento {dep} en la categoría: {cat}, subcategoría: {subcat} a las {datetime.now()}, la cantidad de {len(df)} productos")
 
 
-def precio_promo(element: BeautifulSoup):
-    try: # div/div/div/div[4]/div[2]/div/span
+def precio_promo(element: WebElement):
+    try:
         return get_price(
-            element.find_next(
-                "div", {"id":"items-price"}
-            ).find_next("div").find_next("div").text)
+                element.find_element(By.CSS_SELECTOR,"div#items-price >div>div").text)
     except Exception as e:
-        print(e,e.args)
+        print(e, e.args); 
+        return float(0)
     
 def get_price(valor: str):
     exp = re.search("\d+[\.\d+]*", valor).group(0)
     return float(exp.replace(".", ""))
 
-def select_name(element: BeautifulSoup):
+def select_name(element: WebElement):
     try:
-        nombre_cantidad_unidad = element.find(
-            "span", {"class": "vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body"}).text.strip()
-    except:
-        print("NO se encontró el nombre")
+
+        nombre_cantidad_unidad = element.find_element(By.CSS_SELECTOR,
+            "span.vtex-product-summary-2-x-productBrand.vtex-product-summary-2-x-brandName.t-body").text.strip()
+
+        return nombre_cantidad_unidad
+    except Exception as e:
+        print("Nombre :(", e)
         return ""
-    return nombre_cantidad_unidad
 
 def nombre_cantidad(nom_cant: str):
-    nom_cant = nom_cant.replace("  "," ")
     try:
-        cant = re.search("((X|X\s| X\s| X)|(x|x\s| x\s| x))(\d+[\.\d]*|\d+[\,\d]*)\s{0,1}[a-zA-Z]+", 
-                         nom_cant).group(0).replace(",",".")
+        cant = re.findall("(?<= )?[xX]?\d+[(,|\.)\d+]*(?:\s*[a-zA-Z]+)", 
+                         nom_cant)
+        if len(cant) == 0: return "1","UN"
+        elif len(cant) == 1: return re.search("\d+[(,|\.)\d+]*", cant[0]).group(0).replace(",",".").strip(),\
+                re.search("(?<=[xX])?(?<=[0-9] )?[a-zA-Z]+$", cant[0]).group(0).strip()
+        elif len(cant) > 1: return re.search("\d+[(,|\.)\d+]*", cant[-1]).group(0).replace(",",".").strip(),\
+                re.search("(?<=[xX])?(?<=[0-9] )?[a-zA-Z]+$", cant[-1]).group(0).strip()
     except AttributeError as _:
         try:
             cant = re.search("(\d+[\.\d]*|\d+[,\d]*)\s{0,1}[a-zA-Z]+\.{0,1}", 
                          nom_cant).group(0).replace(",",".")
         except AttributeError as _:
-            return [nom_cant]+["1","UN"]
-    cant = cant.replace("x","").replace("X","").strip()
-        #cant = "1 UN"
-    if (len(cant.split()) == 1):
-        new_cant = re.search("\d+[\.\d]*", cant).group(0)
-        cant = cant.replace(new_cant, "").strip()
-        cant = f"{new_cant} {cant}"
-
-    return [nom_cant]+cant.split()
+            return "1","UN"
 
 
-def precio_normal(element: BeautifulSoup):
+
+def precio_normal(element: WebElement):
     try:
         precio_normal = get_price(
-            element.find_next("div", {"id":"items-price"}).find_next("div",{"class":"tiendasjumboqaio-jumbo-minicart-2-x-price"}).text)
+            element.find_element(By.CSS_SELECTOR,"div#items-price > div > span:nth-child(2) > div").text)
         return precio_normal
     except Exception as e :
         return ""
 
-with open(os.path.join(os.getcwd(),"config.json"),"r") as json_path:
-    config:dict = json.load(json_path)
-current_url_jumbo = MAIN_PAGE
-driver,db = init_scraping(current_url_jumbo,"Jumbo")
-each_departments_categories()
-config["Jumbo"] = True
-with open(os.path.join(os.getcwd(),"config.json"),"w") as writer:
-        json.dump(config,writer)
+def main():
+    global heigth, engine
+    engine = Engine(MAIN_PAGE,"Jumbo")
+    time.sleep(3)
+    heigth = engine.element_wait_searh(15,By.XPATH, "//div[@class='vtex-store-footer-2-x-footerLayout']").size["height"]
+    each_departments_categories()
+    config["Jumbo"] = True
+    with open("src/assets/config.json","w") as writer:
+            json.dump(config,writer)
+
+with open("src/assets/config.json","r") as json_path:
+        config:dict = json.load(json_path)
