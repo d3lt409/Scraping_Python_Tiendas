@@ -92,10 +92,10 @@ def get_subcategories(dep,cat,sub):
         else : engine.current_url = f"{url}?page={count}"
         try:
             engine.driver.get(engine.current_url)
-            time.sleep(3)
+            time.sleep(5)
             engine.ready_document()
-            time.sleep(2)
             engine.element_wait_searh(15, By.ID,"gallery-layout-container")
+            
             get_elements(dep, cat, sub)
             count+=1
             continue
@@ -109,10 +109,8 @@ def get_subcategories(dep,cat,sub):
                 engine.element_wait_searh(2,By.XPATH,"//p[@class='lh-copy vtex-rich-text-0-x-paragraph vtex-rich-text-0-x-paragraph--not-found-opps']")
                 return
             except TimeoutException as e:
-                if tries == 3: raise e.with_traceback(e.__traceback__)
-                engine.driver.refresh()
-                engine.ready_document()
-                tries+=1
+                count+=1
+                continue
         except Exception as e:
             if tries == 3: raise e.with_traceback(e.__traceback__)
             tries +=1
@@ -269,6 +267,7 @@ def main():
     config["Jumbo"] = True
     with open("src/assets/config.json","w") as writer:
             json.dump(config,writer)
+    engine.close()
 
 with open("src/assets/config.json","r") as json_path:
         config:dict = json.load(json_path)

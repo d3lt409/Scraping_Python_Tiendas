@@ -37,6 +37,7 @@ def each_departments_cat_sub(city: str):
     tries = 0
     while True:
         try:
+            time.sleep(4)
             dep_button = engine.element_wait_searh(20,By.ID, "category-menu")
             dep_button.click()
             dep_element_object = engine.elements_wait_searh(20,By.XPATH, "//p[contains(@id,'undefined-nivel2-')]")
@@ -58,7 +59,7 @@ def each_departments_cat_sub(city: str):
     
     dep_cat_elements: dict[dict[str, list[tuple[str]]]] = {}
     for el in dep_element_object:
-        ActionChains(driver).move_to_element(el).perform()
+        ActionChains(engine.driver).move_to_element(el).perform()
         elementos = engine.elements_wait_searh(20,By.XPATH, "//div[@class='exito-category-menu-3-x-itemSideMenu']")
         dep_cat_elements[el.text] = {}
         for elemento in elementos:
@@ -101,28 +102,29 @@ def sub_categories(departamento, categoria: str, subcategoria):
     url = engine.current_url
     tries = 0
     while True:
-        if (current_url_exito.__contains__("page=")): current_url_exito = re.sub("\d+$", "", current_url_exito)+str(count)
-        elif (current_url_exito.__contains__("?")): current_url_exito = f"{url}&page={count}"
-        else: current_url_exito = f"{url}?page={count}"
+        if (engine.current_url.__contains__("page=")): engine.current_url = re.sub("\d+$", "", engine.current_url)+str(count)
+        elif (engine.current_url.__contains__("?")): engine.current_url = f"{url}&page={count}"
+        else: engine.current_url = f"{url}?page={count}"
         try:
-            engine.driver.get(current_url_exito)
+            engine.driver.get(engine.current_url)
             engine.ready_document()
             engine.element_wait_searh(
-                20,By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")
+                20,By.XPATH, "//*[@id='gallery-layout-container']")
+            get_elements(departamento, categoria, subcategoria)
+            count += 1
         except TimeoutException as _:
-            if tries == 2:
-                return []
-            tries += 1
-            engine.driver.refresh()
-            time.sleep(3)
-            continue
-        try:
-            engine.element_wait_searh(3,By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
-            return
-        except TimeoutException:
-            pass
-        get_elements(departamento, categoria, subcategoria)
-        count += 1
+            try:
+                engine.element_wait_searh(3,By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
+                return
+            except TimeoutException:
+                if tries == 2:
+                    return []
+                tries += 1
+                engine.driver.refresh()
+                time.sleep(3)
+                continue
+
+        
 
 
 def scroll_down(time_limit, init=0, final_heith=0):
@@ -161,7 +163,7 @@ def charge_elements():
             tries+= 1
             engine.driver.refresh()
             engine.ready_document()
-        except (WebDriverException,StaleElementReferenceException) as e:
+        except Exception as e:
             if tries == 3: raise e.with_traceback(e.__traceback__)
             tries+=1
             engine.crash_refresh_page()
@@ -175,6 +177,7 @@ def get_elements(dep, cat, subcat):
     time.sleep(3)
     list_elements = []
     elements = charge_elements()
+    if not elements: return
     time.sleep(2)
     for el in elements:
         try:
@@ -263,9 +266,8 @@ def cant_uni(nom_cant: str):
 
 def main():
     global engine, heigth
-    
     try:
-        engine = Engine(MAIN_PAGE, 'Exito', True)
+        engine = Engine(MAIN_PAGE, 'Exito')
         engine.ready_document()
         heigth = engine.element_wait_searh(15,By.XPATH,"/html/body/div[2]/div/div[1]/div/div[5]").size["height"]
         for_each_city()
@@ -274,6 +276,6 @@ def main():
         pass
 
 with open("src/assets/config.json", "r") as json_path:
-            config: dict = json.load(json_path)
-if config["Exito"]: print("Completo");exit()
+        config: dict = json.load(json_path)
+
     

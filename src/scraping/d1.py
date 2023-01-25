@@ -5,7 +5,6 @@ import re                                                            # To Use re
 
 import sys; sys.path.append(".")
 from src.utils.util import init_scraping, CLICK
-from mail.send_email import send_email,erorr_msg
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -48,7 +47,6 @@ def login():
     
     
 def categoires():
-    global lenth
     #N=the number of categories the Bot encounter
     driver.execute_script(CLICK,
             driver.find_element(By.XPATH, "//div[@class='generalHeader__mainMenuBtn']")) # get into categories
@@ -64,7 +62,7 @@ def categoires():
                         (By.XPATH, f"//li[@class='categories-menu__item'][contains(text(),'{category}')]")))) # Click on the first category 
     driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//h4[@class='categoriesNav-Header__subtitle'][contains(text(),'{category}')]")))) 
-    cat_products = get_elements(category,[]) # function to Download the webpage information in the category into cat_products object
+    get_elements(category,[]) # function to Download the webpage information in the category into cat_products object
     
     for name in cat_list:
         driver.execute_script(CLICK,WebDriverWait(driver,TIME_OUT).until(
@@ -73,10 +71,8 @@ def categoires():
                         (By.XPATH, f"//li[@class='categories-menu__item'][contains(text(),'{name}')]")))) 
         driver.execute_script(CLICK,WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                         (By.XPATH, f"//h4[@class='categoriesNav-Header__subtitle'][contains(text(),'{name}')]")))) 
-        cat_products+=get_elements(name,[])
-    df = pd.DataFrame(cat_products, columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
-    lenth["Cantidad elementos"] = len(cat_products)
-    db.to_data_base(df)
+        get_elements(name,[])
+
 
 
 def get_elements(cat,list_elements:list):
@@ -93,7 +89,9 @@ def get_elements(cat,list_elements:list):
         driver.execute_script(CLICK,WebDriverWait(driver,3).until(EC.presence_of_element_located((By.XPATH,"//li[@title='Next Page'][@aria-disabled='false']"))))
         return get_elements(cat,list_elements)
     except TimeoutException as _:
-        return list_elements
+        df = pd.DataFrame(list_elements, columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
+        db.to_data_base(df)
+        print("se guardan los archivos de la categoría",cat, "la cantidad de ", len(df))
     
 def precio_promo(valor:str):  # function to download the prices data . Argumentos: string
     exp = re.search("\d+(\.\d+)*",valor).group(0) # Example: 98.400.  "\d+":98 ;  "(\.\d+)*": .400. Esta última parte al tener asterizco dice que encuentre los números después del punto pero si no existe punto no trae nada . group(0) retorna el objeto que coincide con la búsqueda   
@@ -107,14 +105,11 @@ def cantidad_uni_prec(valor:str):
     return cant,uni,preci_uni
     
 def main():
-    global driver, db
+    global driver,db
     driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
-
+    # login()
     db.init_database_d1()
-    lenth["Cantidad"] = db.consulta_sql_unica("select count(*) from D1;")[0]
     categoires()
-    send_email("D1", lenth)
     db.close()
     driver.close()
-    
-lenth = {}
+    driver.quit
