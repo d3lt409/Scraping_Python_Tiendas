@@ -16,3 +16,4 @@ shutdown.py
 *__pycache__
 *Precios.sqlite
 .env
+venv/

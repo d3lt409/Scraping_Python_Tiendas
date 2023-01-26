@@ -1,7 +1,6 @@
 from datetime import datetime
 import sys
 import time
-from bs4 import BeautifulSoup
 from sqlalchemy.exc import OperationalError
 import pandas as pd
 import re
@@ -15,6 +14,7 @@ from selenium.webdriver.common.keys import Keys
 
 import sys; sys.path.append(".")
 from src.utils.util import init_scraping, crash_refresh_page, CLICK
+from mail.send_email import send_email,erorr_msg
 
 FILENAME = "olimpica_precios.xlsx"
 MAIN_PAGE = "https://www.olimpica.com"
@@ -269,7 +269,7 @@ def get_elements(dep, cat, subcat):
                                 uni, precio_norm, date.date(),date.time()))
 
     df = pd.DataFrame(list_elements, columns=COLUMNS)
-    
+    lenth["Cantidad elementos"] = lenth.get("Cantidad elementos",0) + len(list_elements)
     while True:
         try:
             db.to_data_base(df)
@@ -330,11 +330,16 @@ def precio_normal(element: WebElement):
 def main():
     global driver, db
     driver, db = init_scraping(current_url_olimpica, 'Olimpica')
+    lenth["Cantidad"] = db.consulta_sql_unica("select count(*) from D1;")[0]
     init_page()
     time.sleep(2)
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-
+    
     each_departments_cat()
+    send_email("Olimipica", lenth)
+    driver.close()
+    db.close()
 
 row = None
+lenth = {}
 current_url_olimpica = MAIN_PAGE

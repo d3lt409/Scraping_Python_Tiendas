@@ -5,6 +5,7 @@ import re                                                            # To Use re
 
 import sys; sys.path.append(".")
 from src.utils.util import init_scraping, CLICK
+from mail.send_email import send_email,erorr_msg,PASSWORD
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -48,6 +49,7 @@ def login():
     
 def categoires():
     #N=the number of categories the Bot encounter
+    global lenth
     driver.execute_script(CLICK,
             driver.find_element(By.XPATH, "//div[@class='generalHeader__mainMenuBtn']")) # get into categories
     
@@ -91,6 +93,7 @@ def get_elements(cat,list_elements:list):
     except TimeoutException as _:
         df = pd.DataFrame(list_elements, columns=["Nombre_producto","Categoria","Precio","Cantidad","Unidad","Precio_unidad","Fecha_resultados"])
         db.to_data_base(df)
+        lenth["Cantidad elementos"] = lenth.get("Cantidad elementos",0) + len(list_elements)
         print("se guardan los archivos de la categoría",cat, "la cantidad de ", len(df))
     
 def precio_promo(valor:str):  # function to download the prices data . Argumentos: string
@@ -109,7 +112,12 @@ def main():
     driver, db = init_scraping("https://domicilios.tiendasd1.com","D1")                    # Web page https://domicilios.tiendasd1.com
     # login()
     db.init_database_d1()
+    lenth["Cantidad"] = db.consulta_sql_unica("select count(*) from D1;")[0]
     categoires()
+    send_email("D1", lenth)
     db.close()
     driver.close()
     driver.quit
+    
+
+lenth = {}

@@ -10,8 +10,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
 import sys
-sys.path.append(".")
 
+sys.path.append(".")
+from mail.send_email import send_email,erorr_msg
 from src.utils.util import  Engine
 
 MAIN_PAGE = "https://www.tiendasjumbo.co"
@@ -205,6 +206,7 @@ def get_elements(dep, cat, subcat):
 
         # print(list_elements)
     df = pd.DataFrame(list_elements, columns=COLUMNS)
+    lenth["Cantidad elementos"] = lenth.get("Cantidad elementos",0) + len(list_elements)
     engine.db.to_data_base(df)
     print(f"Productos guardados, Departamento {dep} en la categoría: {cat}, subcategoría: {subcat} a las {datetime.now()}, la cantidad de {len(df)} productos")
 
@@ -262,12 +264,15 @@ def main():
     global heigth, engine
     engine = Engine(MAIN_PAGE,"Jumbo")
     time.sleep(3)
+    lenth["Cantidad"] = engine.db.consulta_sql_unica("select count(*) from D1;")[0]
     heigth = engine.element_wait_searh(15,By.XPATH, "//div[@class='vtex-store-footer-2-x-footerLayout']").size["height"]
     each_departments_categories()
+    send_email("Jumbo", lenth)
     config["Jumbo"] = True
     with open("src/assets/config.json","w") as writer:
             json.dump(config,writer)
     engine.close()
-
+    
+lenth = {}
 with open("src/assets/config.json","r") as json_path:
         config:dict = json.load(json_path)
