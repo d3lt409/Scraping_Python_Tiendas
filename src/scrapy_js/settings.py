@@ -56,9 +56,11 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    'scrapy.extensions.telnet.TelnetConsole': None,
-#}
+CUSTOM_LOG_EXTENSION = True
+EXTENSIONS = {
+   'scrapy.extensions.telnet.TelnetConsole': None,
+   'scrapy_js.extension.CustomLogExtension': 1,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
@@ -101,11 +103,11 @@ SELENIUM_DRIVER_ARGUMENTS=[
     #'--headless'
     '--log-level=3',
     '--start-maximized'
-    "--disable-gpu",
+    '--disable-gpu',
     '--no-sandbox',
     '--disable-dev-shm-usage',
-    "--disable-extensions",
-    '--disable-blink-features=AutomationControlled'
+    # "--disable-extensions",
+    # '--disable-blink-features=AutomationControlled'
     ]  
   
 DOWNLOADER_MIDDLEWARES = {
