@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from sqlalchemy import create_engine,text
 from sqlalchemy.exc import OperationalError
@@ -41,7 +42,7 @@ class DataBase():
     """Genera un objeto de la base de datos
     """
     def __init__(self,name_data_base:str) -> None:
-        self.engine = create_engine(CONNECTION_URI, echo = False, encoding = 'utf-8')
+        self.engine = create_engine(CONNECTION_URI, echo = False)
         self.name_data_base = name_data_base
 
 
@@ -155,8 +156,10 @@ class Engine():
 
     def __init__(self, page_url:str, name_database:str,headless:bool = False) -> None:
         self.headless = headless
-        self._driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()) 
-                              ,options=self.get_options(self.headless))                     # Define the driver we are using
+        caps = DesiredCapabilities.CHROME
+        caps['goog:loggingPrefs'] = {'performance': 'ALL'}
+        self._driver = webdriver.Chrome(service=Service(ChromeDriverManager(version='114.0.5735.90').install()) 
+                              ,options=self.get_options(self.headless), desired_capabilities=caps)                     # Define the driver we are using
         self._current_url = page_url
         self.init_page()
         self.db = DataBase(name_database)
@@ -176,6 +179,7 @@ class Engine():
 
     def get_options(self, headless:bool):
         chrome_options = Options()
+        
         if headless:
             chrome_options.add_argument('--headless')
         chrome_options.add_argument("--disable-gpu")
@@ -183,7 +187,8 @@ class Engine():
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        prefs = {'profile.default_content_setting_values': {'images': 2, 'plugins': 2, 'popups': 2, 'geolocation': 2, 'notifications': 2, 'auto_select_certificate': 2, 'fullscreen': 2,
+        prefs = {"profile.managed_default_content_settings.images": 2, "stylesheet": 2,
+                 'profile.default_content_setting_values': {'images': 2, 'plugins': 2, 'popups': 2, 'geolocation': 2, 'notifications': 2, 'auto_select_certificate': 2, 'fullscreen': 2,
                                                             'mouselock': 2, 'mixed_script': 2, 'media_stream': 2, 'media_stream_mic': 2, 'media_stream_camera': 2, 'protocol_handlers': 2, 'ppapi_broker': 2,
                                                             'automatic_downloads': 2, 'midi_sysex': 2, 'push_messaging': 2, 'ssl_cert_decisions': 2, 'metro_switch_to_desktop': 2,
                                                             'protected_media_identifier': 2, 'app_banner': 2, 'site_engagement': 2, 'durable_storage': 2}}
@@ -232,6 +237,7 @@ class Engine():
         self.init_page()
         self.ready_document()
 
+    
     def element_wait_searh(self, time:int, by, value:str) -> WebElement:
         return WebDriverWait(self._driver, time).until(EC.presence_of_element_located((by, value)))
 
