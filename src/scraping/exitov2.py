@@ -1,12 +1,6 @@
 import traceback
-from src.models.models import Exito
-from src.scraping.constants.constants_exito import *
-from src.utils.util import (
-    Engine)
-import json
-import re
-import time
-import pandas as pd
+
+import json,re,time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -19,6 +13,10 @@ from sqlalchemy import insert
 
 import sys
 sys.path.append(".")
+
+from src.models.models import Exito
+from src.scraping.constants.constants_exito import *
+from src.utils.util import Engine
 # from mail.send_email import send_email,erorr_msg
 
 
@@ -36,7 +34,7 @@ def parse_links(engine: Engine):
     engine.element_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI_VERIFY)
     links = {}
     # driver.execute_script("document.body.style.zoom='80%';")
-    for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI)[0:1]:
+    for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI):
         action.move_to_element(el).perform()
         WebDriverWait(driver, TIME).until(
             EC.presence_of_element_located((By.XPATH, XPATH_LIST_SUBVCAT_VERIFY)))
@@ -44,7 +42,7 @@ def parse_links(engine: Engine):
             By.XPATH, "//a[contains(@id,'Categorías-nivel3-')]")
         cat_name = driver.find_element(By.XPATH, XPATH_NAME_CATEGORY).text
         sub_links = {}
-        for sub in sub_categories[0:1]:
+        for sub in sub_categories:
             sub_name = sub.find_element(
                 By.XPATH, XPATH_LIST_SUBVCAT_VERIFY).text
             sub_link = sub.get_attribute("href")
@@ -55,7 +53,7 @@ def parse_links(engine: Engine):
 
 def get_data(engine):
 
-    time.sleep(5)
+    time.sleep(3)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -96,6 +94,9 @@ def extract_files(cat, sub, products: list):
         nombre_producto = product["productName"]
         precio_bajo = product["priceRange"]["sellingPrice"]["lowPrice"]
         precio_alto = product["priceRange"]["sellingPrice"]["lowPrice"]
+        if not precio_bajo or not precio_alto:
+            precio_bajo = product["priceRange"]["listPrice"]["lowPrice"]
+            precio_alto = product["priceRange"]["listPrice"]["lowPrice"]
         cantidad, unidad = cant_uni(nombre_producto)
         new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
                         "nombre_producto": nombre_producto, "precio_bajo": precio_bajo, "precio_alto": precio_alto, "cantidad": cantidad, "unidad": unidad})
@@ -114,11 +115,13 @@ def iter_pages(cat, sub, engine: Engine, link):
             link = f"{link}?page={count}"
         engine.driver.get(link)
         try:
-            engine.ready_document()
+            # engine.ready_document()
             engine.element_wait_searh(
                 5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
             break
         except TimeoutException as e:
+            pass
+        try:
             container = engine.element_wait_searh(
                 TIME, By.ID, "gallery-layout-container")
             engine.driver.execute_script(
@@ -129,6 +132,8 @@ def iter_pages(cat, sub, engine: Engine, link):
             data = extract_files(cat, sub, get_data(engine))
             save_data(engine.db.engine, data)
             count += 1
+        except TimeoutException:
+            break
 
 
 def cant_uni(nom_cant: str):
