@@ -1,8 +1,9 @@
 XPATH_CATEGORY_BUTTON = "//*[@id='category-menu']"
 XPATH_LIST_CATEGORY_LI = "//div[@class='exito-category-menu-3-x-categoryList']//ul[@class='exito-category-menu-3-x-categoryListD']/li"
+
 XPATH_CATEGORY_CONTAINER = "//div[@class='exito-category-menu-3-x-itemSideMenu']"
-#each cat container
-XPATH_NAME_CATEGORY = "//*[contains(@id,'Categorías-nivel2-')]/strong"
+#each cat container 
+XPATH_NAME_CATEGORY = ".//*[contains(@id,'Categorías-nivel2-')]/strong"
 
 XPATH_LIST_CATEGORY_LI_VERIFY = "//div[@class='exito-category-menu-3-x-categoryList']//ul[@class='exito-category-menu-3-x-categoryListD']/li/div/p[text()!='']"
 XPATH_LIST_SUBVCAT_VERIFY = "//p[contains(@id,'Categorías-nivel3-') and text()!='']"

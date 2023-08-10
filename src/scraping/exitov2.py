@@ -1,6 +1,11 @@
+from src.utils.util import Engine
+from src.scraping.constants.constants_exito import *
+from src.models.models import Exito
 import traceback
 
-import json,re,time
+import json
+import re
+import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -14,9 +19,6 @@ from sqlalchemy import insert
 import sys
 sys.path.append(".")
 
-from src.models.models import Exito
-from src.scraping.constants.constants_exito import *
-from src.utils.util import Engine
 # from mail.send_email import send_email,erorr_msg
 
 
@@ -29,24 +31,29 @@ def parse_links(engine: Engine):
     driver = engine.driver
     driver.implicitly_wait(5)
     action = ActionChains(driver)
-    time.sleep(2)
+    
     engine.element_wait_click(TIME, By.XPATH, XPATH_CATEGORY_BUTTON)
     engine.element_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI_VERIFY)
+    time.sleep(8)
     links = {}
     # driver.execute_script("document.body.style.zoom='80%';")
     for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI):
         action.move_to_element(el).perform()
         WebDriverWait(driver, TIME).until(
             EC.presence_of_element_located((By.XPATH, XPATH_LIST_SUBVCAT_VERIFY)))
+        
+        
+        cat_name = el.text
         sub_categories = el.find_elements(
-            By.XPATH, "//a[contains(@id,'Categorías-nivel3-')]")
-        cat_name = driver.find_element(By.XPATH, XPATH_NAME_CATEGORY).text
+            By.XPATH, XPATH_CATEGORY_CONTAINER)
         sub_links = {}
         for sub in sub_categories:
-            sub_name = sub.find_element(
-                By.XPATH, XPATH_LIST_SUBVCAT_VERIFY).text
-            sub_link = sub.get_attribute("href")
-            sub_links[sub_name] = sub_links.get(sub_name, [])+[sub_link]
+            sub_cat_name = sub.find_element(By.XPATH, XPATH_NAME_CATEGORY).text
+            sub_categories_links = sub.find_elements(
+            By.XPATH, ".//a[contains(@id,'Categorías-nivel3-')]")
+            for sub_cat in sub_categories_links[1:]:
+                sub_link = sub_cat.get_attribute("href")
+                sub_links[sub_cat_name] = sub_links.get(sub_cat_name, [])+[sub_link]
         links[cat_name] = sub_links
     return links
 
@@ -105,7 +112,27 @@ def extract_files(cat, sub, products: list):
 
 
 def iter_pages(cat, sub, engine: Engine, link):
-    count = 1
+    count = 2
+    engine.driver.get(link)
+    try:
+        # engine.ready_document()
+        engine.element_wait_searh(
+            5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
+        return
+    except TimeoutException as e:
+        pass
+    try:
+        container = engine.element_wait_searh(
+            TIME, By.ID, "gallery-layout-container")
+        engine.driver.execute_script(
+            "arguments[0].scrollIntoView(true);", container)
+        engine.elements_wait_searh(
+            TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
+
+        data = extract_files(cat, sub, get_data(engine))
+        save_data(engine.db.engine, data)
+    except TimeoutException:
+        return
     while True:
         if (link.__contains__("page=")):
             link = re.sub("\d+$", "", link)+str(count)
@@ -167,11 +194,12 @@ def main():
         Exito.metadata.create_all(engine.db.engine)
         engine.ready_document()
         links = parse_links(engine)
+        
         for cat, sub_dict in links.items():
             for sub, sub_links in sub_dict.items():
                 for link in sub_links:
                     iter_pages(cat, sub, engine, link)
-        # Cerrar el navegador
+
     except Exception:
         traceback.print_exception(*sys.exc_info())
         print("Cerrada")
