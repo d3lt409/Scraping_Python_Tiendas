@@ -13,7 +13,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 
 import sys; sys.path.append(".")
-from src.utils.util import init_scraping, crash_refresh_page, CLICK
+from src.utils.util import init_scraping, crash_refresh_page
+from src.scraper.engine import CLICK
 from mail.send_email import send_email,erorr_msg
 
 FILENAME = "olimpica_precios.xlsx"

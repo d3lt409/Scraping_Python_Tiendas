@@ -1,4 +1,7 @@
-from src.utils.util import Engine
+import os
+import sqlalchemy
+
+from src.scraper.engine import Engine
 from src.scraping.constants.constants_exito import *
 from src.models.models import Exito
 import traceback
@@ -13,8 +16,6 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 
-from sqlalchemy.orm import Session
-from sqlalchemy import insert
 
 import sys
 sys.path.append(".")
@@ -31,10 +32,10 @@ def parse_links(engine: Engine):
     driver = engine.driver
     driver.implicitly_wait(5)
     action = ActionChains(driver)
-    
+    time.sleep(1)
     engine.element_wait_click(TIME, By.XPATH, XPATH_CATEGORY_BUTTON)
     engine.element_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI_VERIFY)
-    time.sleep(8)
+    time.sleep(3)
     links = {}
     # driver.execute_script("document.body.style.zoom='80%';")
     for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI):
@@ -60,7 +61,7 @@ def parse_links(engine: Engine):
 
 def get_data(engine):
 
-    time.sleep(3)
+    time.sleep(7)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -130,7 +131,7 @@ def iter_pages(cat, sub, engine: Engine, link):
             TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
 
         data = extract_files(cat, sub, get_data(engine))
-        save_data(engine.db.engine, data)
+        engine.db.save_data(Exito, data)
     except TimeoutException:
         return
     while True:
@@ -157,7 +158,7 @@ def iter_pages(cat, sub, engine: Engine, link):
                 TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
 
             data = extract_files(cat, sub, get_data(engine))
-            save_data(engine.db.engine, data)
+            engine.db.save_data(Exito, data)
             count += 1
         except TimeoutException:
             break
@@ -178,29 +179,27 @@ def cant_uni(nom_cant: str):
             re.search("[a-zA-Z]+", cant[-1]).group(0).strip()
 
 
-def save_data(engine, data):
-    with Session(engine) as session:
-        session.execute(
-            insert(Exito).prefix_with("OR IGNORE"),
-            data
-        )
-        session.commit()
-
 
 def main():
 
     try:
-        engine = Engine("https://www.exito.com", "Exito")
+        engine = Engine("https://www.exito.com", Exito)
         Exito.metadata.create_all(engine.db.engine)
         engine.ready_document()
         links = parse_links(engine)
-        
+        res = None #engine.db.last_item_db()
+        # res = engine.db.last_item_db()
         for cat, sub_dict in links.items():
+            if res and cat != res["categoria"]: continue
             for sub, sub_links in sub_dict.items():
+                if res and sub != res["sub_categoria"]: continue
                 for link in sub_links:
                     iter_pages(cat, sub, engine, link)
-
+                    
+    except sqlalchemy.exc.OperationalError:
+        os.mkdir("db")
     except Exception:
         traceback.print_exception(*sys.exc_info())
+    finally:
         print("Cerrada")
         engine.close()

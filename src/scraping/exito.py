@@ -1,6 +1,6 @@
 import sys
 sys.path.append(".")
-from src.utils.util import (
+from src.scraper.engine import (
     Engine)
 from datetime import datetime
 import json

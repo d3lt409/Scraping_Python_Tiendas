@@ -4,8 +4,9 @@ import pandas as pd                                                  # To define
 import re                                                            # To Use regular expressions
 
 import sys; sys.path.append(".")
-from src.utils.util import init_scraping, CLICK
+from src.utils.util import init_scraping
 from mail.send_email import send_email,erorr_msg,PASSWORD
+from src.scraper.engine import CLICK
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By

@@ -13,7 +13,7 @@ import sys
 
 sys.path.append(".")
 from mail.send_email import send_email,erorr_msg
-from src.utils.util import  Engine
+from src.scraper.engine import  Engine
 
 MAIN_PAGE = "https://www.tiendasjumbo.co"
 COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Precio_oferta", "Cantidad",
