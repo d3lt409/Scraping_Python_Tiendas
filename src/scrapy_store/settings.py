@@ -1,4 +1,4 @@
-# Scrapy settings for scrapy_js project
+# Scrapy settings for scrapy_store project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,14 +7,14 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'scrapy_js'
+BOT_NAME = "scrapy_store"
 
-SPIDER_MODULES = ['scrapy_js.spiders']
-NEWSPIDER_MODULE = 'scrapy_js.spiders'
+SPIDER_MODULES = ["scrapy_store.spiders"]
+NEWSPIDER_MODULE = "scrapy_store.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'scrapy_js (+http://www.yourdomain.com)'
+#USER_AGENT = "scrapy_store (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -38,34 +38,32 @@ ROBOTSTXT_OBEY = True
 
 # Override the default request headers:
 #DEFAULT_REQUEST_HEADERS = {
-#   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-#   'Accept-Language': 'en',
+#    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+#    "Accept-Language": "en",
 #}
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    'scrapy_js.middlewares.ScrapyseleniumSpiderMiddleware': 543,
+#    "scrapy_store.middlewares.ScrapyStoreSpiderMiddleware": 543,
 #}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    'scrapy_js.middlewares.ScrapyseleniumDownloaderMiddleware': 543,
+#    "scrapy_store.middlewares.ScrapyStoreDownloaderMiddleware": 543,
 #}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-CUSTOM_LOG_EXTENSION = True
-EXTENSIONS = {
-   'scrapy.extensions.telnet.TelnetConsole': None,
-   'scrapy_js.extension.CustomLogExtension': 1,
-}
+#EXTENSIONS = {
+#    "scrapy.extensions.telnet.TelnetConsole": None,
+#}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    'scrapy_js.pipelines.ScrapyseleniumPipeline': 300,
+#    "scrapy_store.pipelines.ScrapyStorePipeline": 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -85,24 +83,14 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
 #HTTPCACHE_ENABLED = True
 #HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = 'httpcache'
+#HTTPCACHE_DIR = "httpcache"
 #HTTPCACHE_IGNORE_HTTP_CODES = []
-#HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+#HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # Set settings whose default value is deprecated to a future-proof value
-REQUEST_FINGERPRINTER_IMPLEMENTATION = '2.7'
-TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
-
-# SPLASH_URL = 'http://localhost:8050'  # URL de tu instancia de Splash
-DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
-HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
-
-DOWNLOADER_MIDDLEWARES = {
-    # ...
-    'scrapy_splash.SplashMiddleware': 725,
-}
-
-SPIDER_MIDDLEWARES = {
-    # ...
-    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
-}
+REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+FEED_EXPORT_ENCODING = "utf-8"
+SPLASH_URL = 'http://localhost:8050/'  # URL del servidor de Splash
+DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'  # Evita el rastreo duplicado
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'  # Almacenamiento en caché compatible con Splash

@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sqlalchemy
 
@@ -35,7 +36,6 @@ def parse_links(engine: Engine):
     time.sleep(1)
     engine.element_wait_click(TIME, By.XPATH, XPATH_CATEGORY_BUTTON)
     engine.element_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI_VERIFY)
-    time.sleep(3)
     links = {}
     # driver.execute_script("document.body.style.zoom='80%';")
     for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI):
@@ -59,9 +59,9 @@ def parse_links(engine: Engine):
     return links
 
 
-def get_data(engine):
+def get_data(engine:Engine):
 
-    time.sleep(7)
+    time.sleep(9)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -74,9 +74,14 @@ def get_data(engine):
         return False
 
     json_logs = filter(log_filter, logs)
+    
+    print(engine.driver.requests)
 
     # Extraer las respuestas JSON
     json_data = {}
+    data_sql = engine.db.consulta_sql([Exito.nombre_producto], 
+                                [Exito.fecha_resultados == datetime.now().date()])
+    nombre_sql= set([product for sub_data in data_sql for product in sub_data])
     for i, log in enumerate(json_logs):
         request_id = log["params"]["requestId"]
         try:
@@ -88,6 +93,14 @@ def get_data(engine):
             if "data" in data and "productsByIdentifier" in data["data"] \
                     and "productName" in data["data"]["productsByIdentifier"][0]:
                 json_data = data["data"]["productsByIdentifier"]
+            if json_data:
+                nombre_data = set([product["productName"] for product in json_data])
+                print(list(nombre_data))
+                if nombre_data.issubset(nombre_sql) or \
+                    "Leche Entera UHT Paquete EXITO MARCA PROPIA 5400 ml" in nombre_sql:
+                    continue
+                else:
+                    return json_data
         except Exception as e:
             pass
 
@@ -108,7 +121,7 @@ def extract_files(cat, sub, products: list):
         cantidad, unidad = cant_uni(nombre_producto)
         new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
                         "nombre_producto": nombre_producto, "precio_bajo": precio_bajo, "precio_alto": precio_alto, "cantidad": cantidad, "unidad": unidad})
-    print(new_data)
+    # print(new_data)
     return new_data
 
 
@@ -187,8 +200,8 @@ def main():
         Exito.metadata.create_all(engine.db.engine)
         engine.ready_document()
         links = parse_links(engine)
-        res = None #engine.db.last_item_db()
-        # res = engine.db.last_item_db()
+        # res = None #engine.db.last_item_db()
+        res = engine.db.last_item_db()
         for cat, sub_dict in links.items():
             if res and cat != res["categoria"]: continue
             for sub, sub_links in sub_dict.items():

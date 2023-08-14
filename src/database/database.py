@@ -24,7 +24,7 @@ class DataBase():
     """
 
     def __init__(self, model: A) -> None:
-        self.engine = create_engine(CONNECTION_URI, echo=False)
+        self.engine = create_engine(CONNECTION_URI, echo=True)
         self.model = model
 
     def init_database_ara(self):

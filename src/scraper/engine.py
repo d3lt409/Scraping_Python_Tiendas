@@ -5,8 +5,8 @@ import time
 import os
 import sys
 from pyparsing import TypeVar
-# from seleniumwire import webdriver
-from selenium import webdriver
+from seleniumwire import webdriver
+# from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException, InvalidSessionIdException
 from selenium.webdriver.chrome.service import Service
@@ -38,10 +38,10 @@ class Engine():
 
     def __init__(self, page_url: str, model: A, headless: bool = False) -> None:
         self.headless = headless
-        self._driver = webdriver.Chrome(service=Service(ChromeDriverManager().install(
-        )), options=self.get_options(self.headless))                     # Define the driver we are using
-        # self._driver = webdriver.Chrome(
-        #     chrome_options=self.get_options(headless))
+        # self._driver = webdriver.Chrome(service=Service(ChromeDriverManager().install(
+        # )), options=self.get_options(self.headless))                     # Define the driver we are using
+        self._driver = webdriver.Chrome(
+            chrome_options=self.get_options(headless))
         self._current_url = page_url
         self.init_page()
         self.db = DataBase(model)
