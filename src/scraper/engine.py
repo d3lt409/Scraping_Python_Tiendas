@@ -4,7 +4,7 @@ import gc
 import time
 import os
 import sys
-from pyparsing import TypeVar
+from typing import TypeVar
 from seleniumwire import webdriver
 # from selenium import webdriver
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -40,7 +40,7 @@ class Engine():
         self.headless = headless
         # self._driver = webdriver.Chrome(service=Service(ChromeDriverManager().install(
         # )), options=self.get_options(self.headless))                     # Define the driver we are using
-        self._driver = webdriver.Chrome(
+        self._driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
             chrome_options=self.get_options(headless))
         self._current_url = page_url
         self.init_page()
@@ -143,7 +143,7 @@ class Engine():
         return WebDriverWait(self._driver, time).until(EC.presence_of_element_located((by, value)))
 
     def element_wait_click(self, time: int, by, value: str):
-        self.element_wait_searh(time, by, value).click()
+        self.driver.execute_script("arguments[0].click();",self.element_wait_searh(time, by, value))
 
     def elements_wait_searh(self, time: int, by, value: str) -> list[WebElement]:
         return WebDriverWait(self._driver, time).until(EC.presence_of_all_elements_located((by, value)))

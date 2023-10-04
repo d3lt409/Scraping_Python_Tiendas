@@ -29,7 +29,7 @@ class Exito(Base):
     fecha_resultados = mapped_column(Date, default=datetime.now().date())
     hora_resultados = mapped_column(Time, default=datetime.now().time())
 
-    __table_args__ = (UniqueConstraint('categoria', 'nombre_producto',
+    __table_args__ = (UniqueConstraint('nombre_producto',
                       'fecha_resultados', name='_product_uc'),)
 
     def __repr__(self) -> str:
@@ -41,6 +41,7 @@ class D1(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     nombre_producto: Mapped[str] = mapped_column(String(200))
     categoria: Mapped[str] = mapped_column(String(50))
+    sub_categoria: Mapped[str] = mapped_column(String(50))
     precio: Mapped[float]
     precio_unidad: Mapped[float]
     cantidad: Mapped[int]
@@ -48,7 +49,7 @@ class D1(Base):
     fecha_resultados = mapped_column(Date, default=datetime.now().date())
     hora_resultados = mapped_column(Time, default=datetime.now().time())
 
-    __table_args__ = (UniqueConstraint('categoria', 'nombre_producto',
+    __table_args__ = (UniqueConstraint('nombre_producto',
                       'fecha_resultados', name='_product_uc'),)
 
     def __repr__(self) -> str:

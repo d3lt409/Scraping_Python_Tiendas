@@ -14,6 +14,6 @@ prueba.py
 driver
 shutdown.py
 *__pycache__
-*Precios.sqlite
+*.sqlite
 .env
 venv/

@@ -1,6 +1,6 @@
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy import insert
 from sqlalchemy import func
@@ -15,7 +15,7 @@ from src.models.models import Base
 A = TypeVar("A", bound=Base )
 
 
-CONNECTION_URI = "sqlite:///db/Precios.sqlite"
+CONNECTION_URI = "sqlite:///db/Preciosv2.sqlite"
 
 
 
@@ -24,7 +24,7 @@ class DataBase():
     """
 
     def __init__(self, model: A) -> None:
-        self.engine = create_engine(CONNECTION_URI, echo=True)
+        self.engine = create_engine(CONNECTION_URI, echo=False)
         self.model = model
 
     def init_database_ara(self):
@@ -76,11 +76,14 @@ class DataBase():
                 time.sleep(5)
                 continue
     
-    def save_data(self,model, data):
-        with Session(self.engine) as session:
+    @classmethod
+    def save_data(cls,engine,model, data):
+        with Session(engine) as session:
             session.execute(
-                insert(model).prefix_with("OR IGNORE"),
-                data
+                insert(model)\
+                    .prefix_with("OR IGNORE")\
+                    .values(data),
+                
             )
             session.commit()
 
@@ -97,16 +100,24 @@ class DataBase():
                 
     def consulta_sql_unica(self, columns:None = None, filters = None):
         with Session(self.engine) as session:
-            if columns and filters:
-                return session.query(*columns).filter(*filters).one()
-            elif columns and not filters:
-                return session.query(*columns).one()
-            elif not columns and filters:
-                return session.query(self.model).filter(*filters).one()
-            elif not columns and not filters:
-                return session.query(self.model).one()
+            try:
+                if columns and filters:
+                    return session.query(*columns).filter(*filters).one()
+                elif columns and not filters:
+                    return session.query(*columns).one()
+                elif not columns and filters:
+                    return session.query(self.model).filter(*filters).one()
+                elif not columns and not filters:
+                    return session.query(self.model).one()
+            except NoResultFound:
+                return None
+            
+    def consulta_sql_query_one(self, query):
+        with self.engine.connect() as conn:
+            return conn.execute(text(query)).fetchone()._asdict()
 
     def last_item_db(self):
+        # date = datetime(2023,9,2).strftime("%Y-%m-%d")
         date = datetime.now().strftime("%Y-%m-%d")
         category = subcategory = False
         for col in self.model.__table__.columns.keys():
@@ -119,7 +130,6 @@ class DataBase():
         filters = [self.model.fecha_resultados == date, self.model.id == max_id[0]]
         
         res = self.consulta_sql_unica(columns, filters)
-        print(res.__class__)
         if res:
             res = res._asdict()
         return res

@@ -19,5 +19,12 @@ XPATH_FOOTER_PAGE = "//div[contains(@class,'-x-buttonShowMore')]/button[descenda
 
 XPATH_NOT_FOUND = "//div[@class='exito-search-result-4-x-containerNotFoundExito']"
 
+XPATH_BUTTON_NEXT_ELEMENT = "//div[contains(@class, 'vtex-search-result-3-x-buttonShowMore ')]/button"
+XPATH_CLOSE_SPAN = "//span[@class='exito-geolocation-3-x-cursorPointer']"
+
+XPATH_SELECT_LOCATION = "//div[@class='css-yiuvdt']"
+XPATH_INPUT_LOCATION = "//div[@class='']/input"
+XPATH_BUTTON_CONFIRM = "//button[@class='exito-geolocation-3-x-primaryButtonEnable']"
+
 URL = "https://www.exito.com"
 TIME = 20
