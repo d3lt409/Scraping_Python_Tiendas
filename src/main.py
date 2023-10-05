@@ -1,5 +1,5 @@
 import click
-from scraping import ara,d1,olimpica, jumbo, exito,exitov2
+from scraping import ara,d1,olimpicav2, jumbo, exito,exitov2
 
 import multiprocessing as mp
 
@@ -24,7 +24,7 @@ def d1_click():
 
 @main_click.command(name = "olimpica")
 def olimpica_click():
-    job = mp.Process(target=olimpica.main)
+    job = mp.Process(target=olimpicav2.main)
     job.start()
     job.join()
 

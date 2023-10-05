@@ -1,3 +1,5 @@
+from datetime import datetime
+import json
 import time
 import os
 import sys
@@ -87,3 +89,47 @@ def internet_on():
         return True
     except Exception as e:
         return False
+
+
+def get_data(engine, model):
+
+    time.sleep(7)
+    # Obtener los registros de rendimiento
+    logs_raw = engine.driver.get_log("performance")
+    logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
+        lr["message"])["message"]["method"]]
+
+    # Filtrar los logs para encontrar las respuestas JSON
+    def log_filter(log_):
+        if "response" in log_["params"]:
+            return "json" in log_["params"]["response"]["mimeType"]
+        return False
+
+    json_logs = filter(log_filter, logs)
+    
+    json_data = []
+    data_sql = engine.db.consulta_sql([model.nombre_producto], 
+                                [model.fecha_resultados == datetime.now().date()])
+    nombre_sql= set([product for sub_data in data_sql for product in sub_data])
+    for i, log in enumerate(json_logs):
+        request_id = log["params"]["requestId"]
+        json_data = []
+        try:
+            json_response = engine.driver.execute_cdp_cmd(
+                "Network.getResponseBody", {"requestId": request_id})
+            data = json.loads(json_response["body"])
+            if "data" in data and "productSearch" in data["data"]:
+                json_data = data["data"]["productSearch"]["products"]
+            elif "data" in data and "productsByIdentifier" in data["data"] \
+                    and "productName" in data["data"]["productsByIdentifier"][0]:
+                json_data = data["data"]["productsByIdentifier"]
+            if json_data:
+                
+                nombre_data = set([product["productName"] for product in json_data])
+                if nombre_data.issubset(nombre_sql):
+                    continue
+                else:
+                    return json_data
+        except Exception as e:
+            pass
+    return []
