@@ -28,8 +28,8 @@ from src.scraping.exito import main as main_exito
 
 # from mail.send_email import send_email,erorr_msg
 
-DATE = datetime.now()
-# DATE = datetime(2023,10,17)
+# DATE = datetime.now()
+DATE = datetime(2023,10,17)
 
 
 def process_browser_log_entry(entry):
@@ -52,8 +52,6 @@ def parse_links(engine: Engine):
     # driver.execute_script("document.body.style.zoom='80%';")
     for el in engine.elements_wait_searh(TIME, By.XPATH, XPATH_LIST_CATEGORY_LI):
         action.move_to_element(el).perform()
-        WebDriverWait(driver, TIME).until(
-            EC.presence_of_element_located((By.XPATH, XPATH_LIST_SUBVCAT_VERIFY)))
         
         
         cat_name = el.text
@@ -62,18 +60,61 @@ def parse_links(engine: Engine):
         sub_links = {}
         for sub in sub_categories:
             sub_cat_name = sub.find_element(By.XPATH, XPATH_NAME_CATEGORY).text
-            sub_categories_links = sub.find_elements(
-            By.XPATH, ".//a[contains(@id,'Categorías-nivel3-')]")
-            for sub_cat in sub_categories_links[1:]:
+            sub_categories_links = sub.find_elements(By.XPATH, XPATH_SUBCATEGORY_LINKS)
+            for sub_cat in sub_categories_links:
                 sub_link = sub_cat.get_attribute("href")
                 sub_links[sub_cat_name] = sub_links.get(sub_cat_name, [])+[sub_link]
         links[cat_name] = sub_links
     return links
 
 
+# def get_data(engine:Engine):
+
+#     time.sleep(7)
+#     # Obtener los registros de rendimiento
+#     logs_raw = engine.driver.get_log("performance")
+#     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
+#         lr["message"])["message"]["method"]]
+
+#     # Filtrar los logs para encontrar las respuestas JSON
+#     def log_filter(log_):
+#         if "response" in log_["params"]:
+#             return "json" in log_["params"]["response"]["mimeType"]
+#         return False
+
+#     json_logs = filter(log_filter, logs)
+    
+#     json_data = []
+#     data_sql = engine.db.consulta_sql([Exito.nombre_producto], 
+#                                 [Exito.fecha_resultados == datetime.now().date()])
+#     nombre_sql= set([product for sub_data in data_sql for product in sub_data])
+#     for i, log in enumerate(json_logs):
+#         request_id = log["params"]["requestId"]
+#         json_data = []
+#         try:
+#             json_response = engine.driver.execute_cdp_cmd(
+#                 "Network.getResponseBody", {"requestId": request_id})
+#             data = json.loads(json_response["body"])
+#             if "data" in data and "productSearch" in data["data"]:
+#                 json_data = data["data"]["productSearch"]["products"]
+#             elif "data" in data and "productsByIdentifier" in data["data"] \
+#                     and "productName" in data["data"]["productsByIdentifier"][0]:
+#                 json_data = data["data"]["productsByIdentifier"]
+#             if json_data:
+                
+#                 nombre_data = set([product["productName"] for product in json_data])
+#                 if nombre_data.issubset(nombre_sql):
+#                     continue
+#                 else:
+#                     return json_data
+#         except Exception as e:
+#             pass
+#     return []
+
+
 def get_data(engine:Engine):
 
-    time.sleep(6)
+    time.sleep(5)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -94,23 +135,19 @@ def get_data(engine:Engine):
     for i, log in enumerate(json_logs):
         request_id = log["params"]["requestId"]
         products = []
-        data = {}
         try:
             json_response = engine.driver.execute_cdp_cmd(
                 "Network.getResponseBody", {"requestId": request_id})
             data = json.loads(json_response["body"])
-            if "data" in data and "productSearch" in data["data"]:
-                        products = data["data"]["productSearch"]["products"]
-            if not products and "data" in data and "productsByIdentifier" in data["data"] \
-                    and "productName" in data["data"]["productsByIdentifier"][0]:
-                products = data["data"]["productsByIdentifier"]
+            if "data" in data and "search" in data["data"] and "products" in data["data"]["search"] \
+                            and "edges" in data["data"]["search"]["products"]:
+                products = [edge["node"] for edge in data["data"]["search"]["products"]["edges"]]
             if products:
-                
-                nombre_data = set([product["productName"] for product in products])
+                nombre_data = set([product["name"] for product in products])
                 if nombre_data.issubset(nombre_sql):
                     continue
                 else:
-                    json_data += products
+                    json_data+=products
         except Exception as e:
             pass
     return json_data
@@ -135,22 +172,19 @@ def get_data_require(engine):
                         # print(resp.body.decode(errors='ignore'))
                     except: pass
                 try:
-                    if "data" in data and "productSearch" in data["data"]:
-                        products = data["data"]["productSearch"]["products"]
-                    if not products and "data" in data and "productsByIdentifier" in data["data"] \
-                            and "productName" in data["data"]["productsByIdentifier"][0]:
-                        products = data["data"]["productsByIdentifier"]
+                    if "data" in data and "search" in data["data"] and "products" in data["data"]["search"] \
+                            and "edges" in data["data"]["search"]["products"]:
+                        products = [edge["node"] for edge in data["data"]["search"]["products"]["edges"]]
 
                 except TypeError:
                     pass
 
                 if products:
-                    nombre_data = set([product["productName"] for product in products])
-                    print(nombre_data.issubset(nombre_sql))
+                    nombre_data = set([product["name"] for product in products])
                     if nombre_data.issubset(nombre_sql):
                         continue
                     else:
-                        json_data += products
+                        json_data+=products
     return json_data
 
 
@@ -160,12 +194,12 @@ def extract_files(cat, sub, products: list):
     for product in products:
         categoria = cat
         sub_categoria = sub
-        nombre_producto = product["productName"]
-        precio_bajo = product["priceRange"]["sellingPrice"]["lowPrice"]
-        precio_alto = product["priceRange"]["sellingPrice"]["lowPrice"]
+        nombre_producto = product["name"]
+        precio_bajo = product["offers"]["offers"][0]["price"]
+        precio_alto = product["offers"]["offers"][0]["listPrice"]
         if not precio_bajo or not precio_alto:
-            precio_bajo = product["priceRange"]["listPrice"]["lowPrice"]
-            precio_alto = product["priceRange"]["listPrice"]["lowPrice"]
+            precio_bajo = product["offers"]["lowPrice"]
+            precio_alto = product["offers"]["highPrice"] or precio_bajo
         cantidad, unidad = cant_uni(nombre_producto)
         new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
                         "nombre_producto": nombre_producto, "precio_bajo": precio_bajo,
@@ -192,24 +226,13 @@ def select_address(engine:Engine):
     
 def first_iteration(cat,sub, link,engine:Engine):
     engine.driver.get(link)
-    # try:
-    #     select_address(engine)
-    # except TimeoutException:
-    #     pass
-    try:
-        # engine.ready_document()
-        engine.element_wait_searh(
-            5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
-        return
-    except TimeoutException as e:
-        pass
     try:
         container = engine.element_wait_searh(
-            TIME, By.ID, "gallery-layout-container")
+            TIME, By.CLASS_NAME, "product-grid_fsProductPerLine__mHVVa")
         engine.driver.execute_script(
             "arguments[0].scrollIntoView(true);", container)
         engine.elements_wait_searh(
-            TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
+            TIME, By.CSS_SELECTOR, "//h3/a[text()!='']")
         
         
         json_response = get_data(engine)
@@ -224,33 +247,27 @@ def first_iteration(cat,sub, link,engine:Engine):
             else: data_links.append({"link":link,"cat":cat,"subcat":sub})
     except TimeoutException:
         return
-    count = 0
-    action = ActionChains(engine.driver)
+    count = 1
     while True:
+        if (link.__contains__("page=")):
+            link = re.sub("\d+$", "", link)+str(count)
+        elif (link.__contains__("?")):
+            link = f"{link}&facets=brand&sort=score_desc&page={count}"
+        else:
+            link = f"{link}?facets=brand&sort=score_desc&page={count}"
         try:
-            
-            final_height = engine.element_wait_searh(
-                    5,By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")
-            engine.driver.execute_script(f"window.scrollTo(0, {final_height.location['y'] + final_height.size['height']} -200);")
-            # time.sleep(1)
-            engine.element_wait_click(TIME, By.XPATH, XPATH_BUTTON_NEXT_ELEMENT)
-            
+            engine.driver.get(link)
         except TimeoutException:
-            break
+            engine.driver.refresh()
+            time.sleep(3)
+            continue
         try:
-            # engine.ready_document()
-            engine.element_wait_searh(
-                5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
-            break
-        except TimeoutException as e:
-            pass
-        try:
-            # container = engine.element_wait_searh(
-            #     TIME, By.ID, "gallery-layout-container")
-            # engine.driver.execute_script(
-            #     "arguments[0].scrollIntoView(true);", container)
-            # engine.elements_wait_searh(
-            #     TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
+            container = engine.element_wait_searh(
+            TIME, By.CLASS_NAME, "product-grid_fsProductPerLine__mHVVa")
+            engine.driver.execute_script(
+                "arguments[0].scrollIntoView(true);", container)
+            engine.elements_wait_searh(
+                TIME, By.CSS_SELECTOR, "//h3/a[text()!='']")
 
             json_response = get_data(engine)
             if json_response or len(json_response) > 0:
@@ -270,27 +287,15 @@ def first_iteration(cat,sub, link,engine:Engine):
 
 def iter_pages(cat, sub, engine: Engine, link):
     global data_links
-    while True:
-        try:
-            engine.driver.get(link)
-            break
-        except TimeoutException:
-            engine.driver.refresh()
-            time.sleep(4)
-    try:
-        # engine.ready_document()
-        engine.element_wait_searh(
-            5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
-        return
-    except TimeoutException as e:
-        pass
     try:
         container = engine.element_wait_searh(
-            TIME, By.ID, "gallery-layout-container")
+            TIME, By.CLASS_NAME, "product-grid_fsProductPerLine__mHVVa")
         engine.driver.execute_script(
             "arguments[0].scrollIntoView(true);", container)
         engine.elements_wait_searh(
-            TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
+            TIME, By.CSS_SELECTOR, "//h3/a[text()!='']")
+        
+        
         json_response = get_data(engine)
         if json_response or len(json_response) > 0:
             data = extract_files(cat, sub, json_response)
@@ -303,28 +308,28 @@ def iter_pages(cat, sub, engine: Engine, link):
             else: data_links.append({"link":link,"cat":cat,"subcat":sub})
     except TimeoutException:
         return
-    last_link = engine.driver.current_url
+    count = 1
     while True:
+        if (link.__contains__("page=")):
+            link = re.sub("\d+$", "", link)+str(count)
+        elif (link.__contains__("?")):
+            link = f"{link}&facets=brand&sort=score_desc&page={count}"
+        else:
+            link = f"{link}?facets=brand&sort=score_desc&page={count}"
         try:
-            
-            final_height = engine.element_wait_searh(
-                    5,By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexRow vtex-flex-layout-0-x-flexRow--search-result-web']")
-            engine.driver.execute_script(f"window.scrollTo(0, {final_height.location['y'] + final_height.size['height']} - 200);")
-            engine.element_wait_click(TIME, By.XPATH, XPATH_BUTTON_NEXT_ELEMENT)
-            
+            engine.driver.get(link)
         except TimeoutException:
-            break
+            engine.driver.refresh()
+            time.sleep(3)
+            continue
         try:
-            # engine.ready_document()
-            engine.element_wait_searh(
-                5, By.XPATH, "//div[@class='exito-search-result-4-x-containerNotFoundExito']")
-            break
-        except TimeoutException as e:
-            pass
-        try:
-            if engine.driver.current_url == last_link:
-                break
-            last_link = engine.driver.current_url
+            container = engine.element_wait_searh(
+            TIME, By.CLASS_NAME, "product-grid_fsProductPerLine__mHVVa")
+            engine.driver.execute_script(
+                "arguments[0].scrollIntoView(true);", container)
+            engine.elements_wait_searh(
+                TIME, By.CSS_SELECTOR, "//h3/a[text()!='']")
+
             json_response = get_data(engine)
             if json_response or len(json_response) > 0:
                 data = extract_files(cat, sub, json_response)
@@ -335,7 +340,7 @@ def iter_pages(cat, sub, engine: Engine, link):
                     data = extract_files(cat, sub,data )
                     engine.db.save_data(engine.db.engine,Exito, data)
                 else: data_links.append({"link":link,"cat":cat,"subcat":sub})
-            
+            count+=1
         except TimeoutException:
             break
 

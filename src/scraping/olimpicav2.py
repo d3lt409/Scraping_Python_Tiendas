@@ -63,15 +63,15 @@ def each_departments_cat():
     row = engine.db.last_item_db()
     for cat, subs in cat_sub_elements.items():
         print(cat, row)
-        if row and "Categoria" in row and row["Categoria"] != cat:
+        if row and "categoria" in row and row["categoria"] != cat:
             continue
-        elif row and "Categoria" in row:
-            del row["Categoria"]
+        if row and "categoria" in row:
+            del row["categoria"]
         for sub in subs:
             print(sub, row)
-            if row and "sub_categoria" in row and row["sub_categoria"] != cat[0]:
+            if row and "sub_categoria" in row and row["sub_categoria"] != sub[0]:
                 continue
-            elif row and "sub_categoria" in row:
+            if row and "sub_categoria" in row:
                 del row["sub_categoria"]
             save_data(cat, *sub)
 
@@ -85,25 +85,40 @@ def save_data(cat, sub, link):
             link = f"{link}&page={count}"
         else:
             link = f"{link}?page={count}"
-        engine.driver.get(link)
+
+        while True:
+            try:
+                engine.driver.get(link)
+                break
+            except TimeoutException:
+                engine.driver.refresh()
+                time.sleep(3)
+
+        time.sleep(5)
         try:
-            engine.element_wait_searh(
-                5, By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")
-            break
-        except TimeoutException:
             elementos_cargados()
             extract_files(cat, sub, get_data(engine, Olimpica))
             extract_files(cat, sub, get_data_require(engine))
             count += 1
-            
+
+        except TimeoutException:
+            traceback.print_exception(*sys.exc_info())
+            try:
+                engine.element_wait_searh(
+                    3, By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")
+                break
+            except TimeoutException:
+                engine.driver.refresh()
+                time.sleep(2)
 
 
 def get_data_require(engine):
-    data_sql = engine.db.consulta_sql([Olimpica.nombre_producto], 
-                                [Olimpica.fecha_resultados == datetime.now().date()])
-    nombre_sql= set([product for sub_data in data_sql for product in sub_data])
+    data_sql = engine.db.consulta_sql([Olimpica.nombre_producto],
+                                      [Olimpica.fecha_resultados == datetime.now().date()])
+    nombre_sql = set(
+        [product for sub_data in data_sql for product in sub_data])
     json_data = []
-    for req in  engine.driver.requests:
+    for req in engine.driver.requests:
         if req.response:
             resp = req.response
             data = {}
@@ -115,7 +130,8 @@ def get_data_require(engine):
                     try:
                         data = json.loads(decompress(resp.body))
                         # print(resp.body.decode(errors='ignore'))
-                    except: pass
+                    except:
+                        pass
                 try:
                     if "data" in data and "productSearch" in data["data"]:
                         json_data = data["data"]["productSearch"]["products"]
@@ -127,8 +143,8 @@ def get_data_require(engine):
                     pass
 
                 if json_data:
-                    nombre_data = set([product["productName"] for product in json_data])
-                    print(list(nombre_data))
+                    nombre_data = set([product["productName"]
+                                      for product in json_data])
                     if nombre_data.issubset(nombre_sql):
                         continue
                     else:
@@ -167,16 +183,8 @@ def scroll_down(final):
 
 
 def elementos_cargados():
-    global driver
-    tries = 0
-    while tries < 2:
-        try:
-            WebDriverWait(engine.driver, 10).until(EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='false olimpica-dinamic-flags-0-x-listPrices']/div/span")))
-            break
-        except TimeoutException as _:
-            engine.driver.refresh()
-            tries += 1
+    WebDriverWait(engine.driver, 10).until(EC.presence_of_element_located(
+        (By.XPATH, "//span[@class='vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body']")))
 
 
 def precio_promo(element: WebElement):

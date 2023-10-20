@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import insert
 from sqlalchemy import func
 
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 import time
 from datetime import datetime
@@ -116,9 +116,12 @@ class DataBase():
         with self.engine.connect() as conn:
             return conn.execute(text(query)).fetchone()._asdict()
 
-    def last_item_db(self):
+    def last_item_db(self, date:Optional[datetime]):
         # date = datetime(2023,9,2).strftime("%Y-%m-%d")
-        date = datetime.now().strftime("%Y-%m-%d")
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+        else:
+            date = date.strftime("%Y-%m-%d")
         category = subcategory = False
         for col in self.model.__table__.columns.keys():
             if col == 'categoria': category = True

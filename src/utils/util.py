@@ -19,7 +19,7 @@ from src.database.database import DataBase
 chrome_options = Options()
 # Modo headless para no mostrar la interfaz gráfica
 # chrome_options.add_argument("--headless")
-chrome_options.page_load_strategy = 'eager'
+# chrome_options.page_load_strategy = 'eager'
 chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
 chrome_options.add_argument('--disable-gpu')
@@ -27,7 +27,7 @@ chrome_options.add_argument("--log-level=3")
 chrome_options.add_argument("--disable-infobars")
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument("--ignore-certificate-errors")
-chrome_options.add_argument("--remote-debugging-port=9230")
+# chrome_options.add_argument("--remote-debugging-port=9230")
 chrome_options.set_capability(
     'goog:loggingPrefs', {'performance': 'ALL'})
 chrome_options.add_experimental_option("prefs", {

@@ -170,7 +170,7 @@ def main():
     lenth["Cantidad"] = db.consulta_sql_query_one(
         "select count(*) as count from D1;")["count"]
     categoires()
-    # send_email("D1", lenth)
+    send_email("D1", lenth)
     db.close()
     driver.close()
     driver.quit

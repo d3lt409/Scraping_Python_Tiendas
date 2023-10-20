@@ -63,34 +63,22 @@ class Engine():
         if headless:
             chrome_options.add_argument('--headless')
         # Opciones del navegador Chrome
-        chrome_options.page_load_strategy = 'eager'
+        chrome_options.page_load_strategy = 'none'
         chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument("--enable-automation")
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument("--dns-prefetch-disable")
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--ignore-certificate-errors")
-        chrome_options.add_argument("--remote-debugging-port=9230")
+        # chrome_options.add_argument("--remote-debugging-port=9230")
         chrome_options.set_capability(
             'goog:loggingPrefs', {'performance': 'ALL'})
         chrome_options.add_experimental_option("prefs", {
             "profile.managed_default_content_settings.images": 2,
-            "stylesheet": 2,
-            # 'profile.default_content_setting_values': {'images': 2, 'plugins': 2, 'popups': 2, 
-            #                                            'geolocation': 2, 'notifications': 2, 
-            #                                         #    'auto_select_certificate': 2, 'fullscreen': 2,
-            #                                         'mouselock': 2, 'mixed_script': 2, 'media_stream': 2, 
-            #                                         'media_stream_mic': 2, 'media_stream_camera': 2,
-            #                                         'protocol_handlers': 2, 'ppapi_broker': 2,
-            #                                         'automatic_downloads': 2, 'midi_sysex': 2,
-            #                                         'push_messaging': 2, 'ssl_cert_decisions': 2,
-            #                                         'metro_switch_to_desktop': 2,
-            #                                         'protected_media_identifier': 2, 
-            #                                         'app_banner': 2,
-            #                                         "stylesheet": 2,
-            #                                         'durable_storage': 2}
-
+            "stylesheet": 2
         })
 
         return chrome_options
@@ -143,10 +131,10 @@ class Engine():
         return WebDriverWait(self._driver, time).until(EC.presence_of_element_located((by, value)))
 
     def element_wait_click(self, time: int, by, value: str):
-        self.driver.execute_script("arguments[0].click;",self.element_wait_searh(time, by, value))
+        self.driver.execute_script("arguments[0].click();",self.element_wait_searh(time, by, value))
         
     def click(self, element: WebElement):
-        self.driver.execute_script("arguments[0].click;",element)
+        self.driver.execute_script("arguments[0].click();",element)
 
     def elements_wait_searh(self, time: int, by, value: str) -> list[WebElement]:
         return WebDriverWait(self._driver, time).until(EC.presence_of_all_elements_located((by, value)))
