@@ -73,6 +73,9 @@ class Engine():
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--ignore-certificate-errors")
+        #
+        chrome_options.add_argument("force-device-scale-factor=0.75")
+        chrome_options.add_argument("high-dpi-support=0.75")
         # chrome_options.add_argument("--remote-debugging-port=9230")
         chrome_options.set_capability(
             'goog:loggingPrefs', {'performance': 'ALL'})

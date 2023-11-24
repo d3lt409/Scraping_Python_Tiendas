@@ -29,7 +29,7 @@ from src.scraping.exito import main as main_exito
 # from mail.send_email import send_email,erorr_msg
 
 DATE = datetime.now()
-# DATE = datetime(2023,10,17)
+# DATE = datetime(2023,11,14)
 
 
 def process_browser_log_entry(entry):
@@ -73,7 +73,7 @@ def parse_links(engine: Engine):
 
 def get_data(engine:Engine):
 
-    time.sleep(6)
+    time.sleep(5)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -146,7 +146,6 @@ def get_data_require(engine):
 
                 if products:
                     nombre_data = set([product["productName"] for product in products])
-                    print(nombre_data.issubset(nombre_sql))
                     if nombre_data.issubset(nombre_sql):
                         continue
                     else:
@@ -215,13 +214,17 @@ def first_iteration(cat,sub, link,engine:Engine):
         json_response = get_data(engine)
         if json_response or len(json_response) > 0:
             data = extract_files(cat, sub, json_response)
-            engine.db.save_data(engine.db.engine,Exito, data)
-        else: 
-            data = get_data_require(engine)
-            if data:
-                data = extract_files(cat, sub,data )
+            try:
                 engine.db.save_data(engine.db.engine,Exito, data)
-            else: data_links.append({"link":link,"cat":cat,"subcat":sub})
+            except sqlalchemy.exc.OperationalError: pass
+
+        data = get_data_require(engine)
+        if data:
+            data = extract_files(cat, sub,data )
+            try:
+                engine.db.save_data(engine.db.engine,Exito, data)
+            except sqlalchemy.exc.OperationalError: pass
+        else: data_links.append({"link":link,"cat":cat,"subcat":sub})
     except TimeoutException:
         return
     count = 0
@@ -255,13 +258,17 @@ def first_iteration(cat,sub, link,engine:Engine):
             json_response = get_data(engine)
             if json_response or len(json_response) > 0:
                 data = extract_files(cat, sub, json_response)
-                engine.db.save_data(engine.db.engine,Exito, data)
-            else: 
-                data = get_data_require(engine)
-                if data:
-                    data = extract_files(cat, sub,data )
+                try:
                     engine.db.save_data(engine.db.engine,Exito, data)
-                else: data_links.append({"link":link,"cat":cat,"subcat":sub})
+                except sqlalchemy.exc.OperationalError: pass
+
+            data = get_data_require(engine)
+            if data:
+                data = extract_files(cat, sub,data )
+                try:
+                    engine.db.save_data(engine.db.engine,Exito, data)
+                except sqlalchemy.exc.OperationalError: pass
+            # else: data_links.append({"link":link,"cat":cat,"subcat":sub})
             count+=1
         except TimeoutException:
             break
@@ -285,22 +292,26 @@ def iter_pages(cat, sub, engine: Engine, link):
     except TimeoutException as e:
         pass
     try:
-        container = engine.element_wait_searh(
-            TIME, By.ID, "gallery-layout-container")
-        engine.driver.execute_script(
-            "arguments[0].scrollIntoView(true);", container)
-        engine.elements_wait_searh(
-            TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
+        # container = engine.element_wait_searh(
+        #     TIME, By.ID, "gallery-layout-container")
+        # engine.driver.execute_script(
+        #     "arguments[0].scrollIntoView(true);", container)
+        # engine.elements_wait_searh(
+        #     TIME, By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
         json_response = get_data(engine)
         if json_response or len(json_response) > 0:
             data = extract_files(cat, sub, json_response)
-            engine.db.save_data(engine.db.engine,Exito, data)
-        else: 
-            data = get_data_require(engine)
-            if data:
-                data = extract_files(cat, sub,data )
+            try:
                 engine.db.save_data(engine.db.engine,Exito, data)
-            else: data_links.append({"link":link,"cat":cat,"subcat":sub})
+            except sqlalchemy.exc.OperationalError: pass
+
+        data = get_data_require(engine)
+        if data:
+            data = extract_files(cat, sub,data )
+            try:
+                engine.db.save_data(engine.db.engine,Exito, data)
+            except sqlalchemy.exc.OperationalError: pass
+        # else: data_links.append({"link":link,"cat":cat,"subcat":sub})
     except TimeoutException:
         return
     last_link = engine.driver.current_url
@@ -328,13 +339,20 @@ def iter_pages(cat, sub, engine: Engine, link):
             json_response = get_data(engine)
             if json_response or len(json_response) > 0:
                 data = extract_files(cat, sub, json_response)
-                engine.db.save_data(engine.db.engine,Exito, data)
-            else: 
-                data = get_data_require(engine)
-                if data:
-                    data = extract_files(cat, sub,data )
+                try:
                     engine.db.save_data(engine.db.engine,Exito, data)
-                else: data_links.append({"link":link,"cat":cat,"subcat":sub})
+                except sqlalchemy.exc.OperationalError: pass
+
+            data = get_data_require(engine)
+            if data:
+                data = extract_files(cat, sub,data )
+                try:
+                    engine.db.save_data(engine.db.engine,Exito, data)
+                except sqlalchemy.exc.OperationalError: pass
+            # else: data_links.append({"link":link,"cat":cat,"subcat":sub})
+            # if int(re.search("(?<=page=)[0-9]+",engine.driver.current_url).group()) % 20 == 0:
+            #     engine.driver.refresh()
+            #     time.sleep(6)
             
         except TimeoutException:
             break
@@ -360,9 +378,12 @@ def main():
     global data_links
     data_links = []
     try:
-        engine = Engine("https://www.exito.com", Exito)
+        engine = Engine("https://www.exito.com/", Exito)
+        
         Exito.metadata.create_all(engine.db.engine)
         engine.ready_document()
+        engine.driver.find_element(By.TAG_NAME,"html").send_keys(Keys.CONTROL+Keys.SUBTRACT)
+        time.sleep(2)
         links = parse_links(engine)
         res = None #engine.db.last_item_db()
         res = engine.db.last_item_db(DATE)
