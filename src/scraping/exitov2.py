@@ -29,7 +29,10 @@ from src.scraping.exito import main as main_exito
 # from mail.send_email import send_email,erorr_msg
 
 DATE = datetime.now()
-# DATE = datetime(2023,11,14)
+# DATE = datetime(2024,1,27)
+
+
+URL = "https://tienda.exito.com/"
 
 
 def process_browser_log_entry(entry):
@@ -378,7 +381,7 @@ def main():
     global data_links
     data_links = []
     try:
-        engine = Engine("https://www.exito.com/", Exito)
+        engine = Engine(URL, Exito)
         
         Exito.metadata.create_all(engine.db.engine)
         engine.ready_document()
