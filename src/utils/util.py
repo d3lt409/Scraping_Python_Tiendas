@@ -34,6 +34,7 @@ chrome_options.add_experimental_option("prefs", {
     "profile.managed_default_content_settings.images": 2,
     "stylesheet": 2})
 
+
 def init_scraping(page: str, name_database: str):
     while not internet_on():
         continue
@@ -106,11 +107,12 @@ def get_data(engine, model):
         return False
 
     json_logs = filter(log_filter, logs)
-    
+
     json_data = []
-    data_sql = engine.db.consulta_sql([model.nombre_producto], 
-                                [model.fecha_resultados == datetime.now().date()])
-    nombre_sql= set([product for sub_data in data_sql for product in sub_data])
+    data_sql = engine.db.consulta_sql([model.nombre_producto],
+                                      [model.fecha_resultados == datetime.now().date()])
+    nombre_sql = set(
+        [product for sub_data in data_sql for product in sub_data])
     for i, log in enumerate(json_logs):
         request_id = log["params"]["requestId"]
         json_data = []
@@ -124,8 +126,9 @@ def get_data(engine, model):
                     and "productName" in data["data"]["productsByIdentifier"][0]:
                 json_data = data["data"]["productsByIdentifier"]
             if json_data:
-                
-                nombre_data = set([product["productName"] for product in json_data])
+
+                nombre_data = set([product["productName"]
+                                  for product in json_data])
                 if nombre_data.issubset(nombre_sql):
                     continue
                 else:

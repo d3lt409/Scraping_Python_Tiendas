@@ -1,19 +1,23 @@
-# To call when the code runs the webscrapping
-from mail.send_email import send_email, erorr_msg, PASSWORD
+
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from src.models.models import D1
-from src.scraper.engine import CLICK
-from src.utils.util import init_scraping
 from datetime import datetime
 # To allow the code to wait a few second between some lines                 # To scrolldown help from functions when you type (pageElement:single outcome, ResultSet: several outcomes)
 import time
 # To define de data frame
 import pandas as pd
+
 # To Use regular expressions
 import re
+
+# To call when the code runs the webscrapping
+from mail.send_email import send_email, erorr_msg, PASSWORD
+from src.models.models import D1
+from src.scraper.engine import CLICK
+from src.utils.util import init_scraping
+
 
 import sys
 sys.path.append(".")
@@ -62,7 +66,7 @@ def categoires():
     driver.execute_script(CLICK,
                           WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
                               (By.XPATH,
-                               "//button[@class='layout__StyledButton-sc-lp8hl0-0 glTQbP header__categoryTree']")
+                               "//button[contains(@class, 'header__categoryTree')]")
                           )))  # get into categories
 
     time.sleep(2)
@@ -82,10 +86,11 @@ def categoires():
 
     for name in cat_list:
         driver.execute_script(CLICK,
-                              WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
-                                  (By.XPATH,
-                                   "//button[@class='layout__StyledButton-sc-lp8hl0-0 glTQbP header__categoryTree']")
-                              )))  # get into categories
+                              WebDriverWait(driver, TIME_OUT).until(
+                                  EC.presence_of_element_located(
+                                      (By.XPATH,
+                                       "//button[contains(@class, 'header__categoryTree')]")
+                                  )))  # get into categories
 
         driver.execute_script(CLICK, WebDriverWait(driver, TIME_OUT).until(EC.presence_of_element_located(
             (By.XPATH, f"//div[@class='ant-menu-submenu-title']//*[contains(text(),'{name}')]"))))  # Click on the first category
@@ -95,12 +100,13 @@ def categoires():
 
 
 def sub_categories(category):
+    time.sleep(1)
     sub_categories_list = WebDriverWait(driver, TIME_OUT).until(EC.presence_of_all_elements_located(
         (By.XPATH,
-         "//label[@class='ant-checkbox-wrapper ant-checkbox-group-item css-1ck3jst']/span[2]")
+         "//label[contains(@class,'ant-checkbox-wrapper ant-checkbox-group-item')]/span[2]")
     ))
     sub_categories_text = [get_text(el.text) for el in sub_categories_list]
-
+    print(sub_categories_text)
     base_url = driver.current_url
 
     for sub in sub_categories_text:
@@ -170,7 +176,7 @@ def main():
     lenth["Cantidad"] = db.consulta_sql_query_one(
         "select count(*) as count from D1;")["count"]
     categoires()
-    send_email("D1", lenth)
+    # send_email("D1", lenth)
     db.close()
     driver.close()
     driver.quit
