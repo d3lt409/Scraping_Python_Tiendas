@@ -15,7 +15,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 from gzip import decompress
 
@@ -347,6 +347,50 @@ def cant_uni(nom_cant: str):
             re.search("[a-zA-Z]+", cant[-1]).group(0).strip()
 
 
+def iterate_cat_sub(links: dict, res: dict, engine: Engine):
+    for cat, sub_dict in links.items():
+        if res and cat != res.get("categoria"):
+            continue
+
+        if res:
+            del res["categoria"]
+
+        print(cat, "Categoria")
+
+        for sub, sub_links in sub_dict.items():
+            if res and sub != res.get("sub_categoria"):
+                continue
+
+            count = 0
+            print(sub, "sub_categoria")
+
+            if res:
+                print("-" * 10)
+                print(sub_links)
+                print("-" * 10)
+
+                while count < len(sub_links):
+                    try:
+                        link = sub_links[count]
+                        if "taeq" in link:
+                            count += 1
+                            continue
+
+                        first_iteration(cat, sub, link, engine)
+                        count += 1
+                        break
+                    except TimeoutException:
+                        count += 1
+                        continue
+
+            if res:
+                res = None
+
+            for link in sub_links[count:]:
+                print("itera", link)
+                iter_pages(cat, sub, engine, link)
+
+
 def main():
     engine = None
     try:
@@ -355,51 +399,18 @@ def main():
         engine.ready_document()
         links = parse_links(engine)
         res = engine.db.last_item_db(DATE)
-
-        for cat, sub_dict in links.items():
-            if res and cat != res.get("categoria"):
-                continue
-
-            if res:
-                del res["categoria"]
-
-            print(cat, "Categoria")
-
-            for sub, sub_links in sub_dict.items():
-                if res and sub != res.get("sub_categoria"):
-                    continue
-
-                count = 0
-                print(sub, "sub_categoria")
-
-                if res:
-                    print("-" * 10)
-                    print(sub_links)
-                    print("-" * 10)
-
-                    while count < len(sub_links):
-                        try:
-                            link = sub_links[count]
-                            if "taeq" in link:
-                                count += 1
-                                continue
-
-                            first_iteration(cat, sub, link, engine)
-                            count += 1
-                            break
-                        except TimeoutException:
-                            count += 1
-                            continue
-
-                if res:
-                    res = None
-
-                for link in sub_links[count:]:
-                    print("itera", link)
-                    iter_pages(cat, sub, engine, link)
+        iterate_cat_sub(links, res, engine)
 
     except sqlalchemy.exc.OperationalError:
         os.mkdir("db")
+    except WebDriverException as e:
+        print("Error de WebDriver:", e)
+        if engine:
+            engine.close()
+        # Espera un momento para permitir que el navegador anterior se cierre completamente
+        time.sleep(5)
+        # Crea una nueva instancia del driver para reiniciar el navegador
+        main()
     except Exception as e:
         traceback.print_exception(*sys.exc_info())
     finally:
