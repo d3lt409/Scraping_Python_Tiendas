@@ -28,8 +28,8 @@ sys.path.append(".")
 
 # from mail.send_email import send_email,erorr_msg
 
-DATE = datetime.now()
-# DATE = datetime(2023, 10, 17)
+# DATE = datetime.now()
+DATE = datetime(2024,2,24)
 
 
 def process_browser_log_entry(entry):
@@ -393,27 +393,29 @@ def iterate_cat_sub(links: dict, res: dict, engine: Engine):
 
 def main():
     engine = None
-    try:
-        engine = Engine("https://www.exito.com", Exito)
-        Exito.metadata.create_all(engine.db.engine)
-        engine.ready_document()
-        links = parse_links(engine)
-        res = engine.db.last_item_db(DATE)
-        iterate_cat_sub(links, res, engine)
+    while True:
+        try:
+            engine = Engine("https://www.exito.com", Exito)
+            Exito.metadata.create_all(engine.db.engine)
+            engine.ready_document()
+            links = parse_links(engine)
+            res = engine.db.last_item_db(DATE)
+            iterate_cat_sub(links, res, engine)
 
-    except sqlalchemy.exc.OperationalError:
-        os.mkdir("db")
-    except WebDriverException as e:
-        print("Error de WebDriver:", e)
-        if engine:
-            engine.close()
-        # Espera un momento para permitir que el navegador anterior se cierre completamente
-        time.sleep(5)
-        # Crea una nueva instancia del driver para reiniciar el navegador
-        main()
-    except Exception as e:
-        traceback.print_exception(*sys.exc_info())
-    finally:
-        print("Cerrada")
-        if engine:
-            engine.close()
+        except sqlalchemy.exc.OperationalError:
+            os.mkdir("db")
+        except WebDriverException as e:
+            print("Error de WebDriver:", e)
+            if engine:
+                engine.close()
+            # Espera un momento para permitir que el navegador anterior se cierre completamente
+            time.sleep(5)
+            # Crea una nueva instancia del driver para reiniciar el navegador
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            break
+        finally:
+            print("Cerrada")
+            if engine:
+                engine.close()
+            break
