@@ -269,7 +269,8 @@ def iter_pages(cat, sub, engine: Engine, link):
             10, By.XPATH, "//div[@data-fs-grid-options-container='true']//button[1]")
     except TimeoutException:
         pass
-
+    if (engine.current_url != link):
+        return
     try:
         container = engine.element_wait_search(
             TIME, By.XPATH, "//section[contains(@class,'section product-gallery_fs-product-listing')]//div[contains(@class,'product-grid_fs-product-grid')]")
@@ -311,6 +312,8 @@ def iter_pages(cat, sub, engine: Engine, link):
                 10, By.XPATH, "//div[@data-fs-grid-options-container='true']//button[1]")
         except TimeoutException:
             pass
+        if (engine.current_url != link):
+            return
         try:
             container = engine.element_wait_search(
                 TIME, By.XPATH, "//section[contains(@class,'section product-gallery_fs-product-listing')]//div[contains(@class,'product-grid_fs-product-grid')]")
