@@ -1,5 +1,8 @@
 
+import sys
+import traceback
 from sqlalchemy import create_engine, text
+import sqlalchemy
 from sqlalchemy.exc import OperationalError, NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy import insert
@@ -12,11 +15,10 @@ from datetime import datetime
 
 from src.models.models import Base
 
-A = TypeVar("A", bound=Base )
+A = TypeVar("A", bound=Base)
 
 
 CONNECTION_URI = "sqlite:///db/Preciosv2.sqlite"
-
 
 
 class DataBase():
@@ -75,19 +77,28 @@ class DataBase():
                 print("Por favor guarde cambios en la base de datos")
                 time.sleep(5)
                 continue
-    
-    @classmethod
-    def save_data(cls,engine,model, data):
-        with Session(engine) as session:
-            session.execute(
-                insert(model)\
-                    .prefix_with("OR IGNORE")\
-                    .values(data),
-                
-            )
-            session.commit()
 
-    def consulta_sql(self, columns:None = None, filters = None):
+    @classmethod
+    def save_data(cls, engine, model, data: list | dict):
+        try:
+            with Session(engine) as session:
+                session.execute(
+                    insert(model)
+                    .prefix_with("OR IGNORE")
+                    .values(data),
+
+                )
+                session.commit()
+        except sqlalchemy.exc.OperationalError as e:
+            # traceback.print_exception(**sys.exc_info())
+            print(e)
+            middle = int(len(data)/2)
+            first = data[0:middle]
+            second = data[middle:]
+            DataBase.save_data(engine, model, first)
+            DataBase.save_data(engine, model, second)
+
+    def consulta_sql(self, columns: None = None, filters=None):
         with Session(self.engine) as session:
             if columns and filters:
                 return session.query(*columns).filter(*filters).all()
@@ -97,8 +108,8 @@ class DataBase():
                 return session.query(self.model).filter(*filters).all()
             elif not columns and not filters:
                 return session.query(self.model).all()
-                
-    def consulta_sql_unica(self, columns:None = None, filters = None):
+
+    def consulta_sql_unica(self, columns: None = None, filters=None):
         with Session(self.engine) as session:
             try:
                 if columns and filters:
@@ -111,12 +122,12 @@ class DataBase():
                     return session.query(self.model).one()
             except NoResultFound:
                 return None
-            
+
     def consulta_sql_query_one(self, query):
         with self.engine.connect() as conn:
             return conn.execute(text(query)).fetchone()._asdict()
 
-    def last_item_db(self, date:Optional[datetime]):
+    def last_item_db(self, date: datetime = None):
         # date = datetime(2023,9,2).strftime("%Y-%m-%d")
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
@@ -124,14 +135,19 @@ class DataBase():
             date = date.strftime("%Y-%m-%d")
         category = subcategory = False
         for col in self.model.__table__.columns.keys():
-            if col == 'categoria': category = True
-            if col == 'sub_categoria': subcategory = True
+            if col == 'categoria':
+                category = True
+            if col == 'sub_categoria':
+                subcategory = True
         columns = []
-        if category: columns.append(self.model.categoria.label("categoria"))
-        if subcategory: columns.append(self.model.sub_categoria.label("sub_categoria"))
+        if category:
+            columns.append(self.model.categoria.label("categoria"))
+        if subcategory:
+            columns.append(self.model.sub_categoria.label("sub_categoria"))
         max_id = self.consulta_sql_unica([func.max(self.model.id)])
-        filters = [self.model.fecha_resultados == date, self.model.id == max_id[0]]
-        
+        filters = [self.model.fecha_resultados ==
+                   date, self.model.id == max_id[0]]
+
         res = self.consulta_sql_unica(columns, filters)
         if res:
             res = res._asdict()
@@ -139,4 +155,3 @@ class DataBase():
 
     def close(self):
         self.engine.dispose()
-

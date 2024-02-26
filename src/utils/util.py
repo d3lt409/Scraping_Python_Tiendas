@@ -94,7 +94,7 @@ def internet_on():
 
 def get_data(engine, model):
 
-    time.sleep(7)
+    time.sleep(4)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
@@ -115,24 +115,30 @@ def get_data(engine, model):
         [product for sub_data in data_sql for product in sub_data])
     for i, log in enumerate(json_logs):
         request_id = log["params"]["requestId"]
-        json_data = []
+        # json_data = []
         try:
             json_response = engine.driver.execute_cdp_cmd(
                 "Network.getResponseBody", {"requestId": request_id})
             data = json.loads(json_response["body"])
-            if "data" in data and "productSearch" in data["data"]:
-                json_data = data["data"]["productSearch"]["products"]
-            elif "data" in data and "productsByIdentifier" in data["data"] \
-                    and "productName" in data["data"]["productsByIdentifier"][0]:
-                json_data = data["data"]["productsByIdentifier"]
-            if json_data:
+            if "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]:
+                json_data.append(data["data"]["product"])
+            # elif "data" in data and "productsByIdentifier" in data["data"] \
+            #         and "productName" in data["data"]["productsByIdentifier"][0]:
+            #     json_data = data["data"]["productsByIdentifier"]
+            #     if json_data:
 
-                nombre_data = set([product["productName"]
-                                  for product in json_data])
-                if nombre_data.issubset(nombre_sql):
-                    continue
-                else:
-                    return json_data
+            #         nombre_data = set([product["productName"]
+            #                            for product in json_data])
+            #         if nombre_data.issubset(nombre_sql):
+            #             continue
+            #         else:
+            #             return json_data
+
         except Exception as e:
             pass
-    return []
+    if len(json_data) > 0:
+
+        json_data = [product
+                     for product in json_data if product["productName"] not in nombre_sql]
+
+    return json_data

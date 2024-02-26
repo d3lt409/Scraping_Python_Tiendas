@@ -31,6 +31,9 @@ class Engine:
         self.init_page()
         self.db = DataBase(model)
 
+    def implicitly_wait(self, time: int):
+        self._driver.implicitly_wait(time)
+
     def create_driver(self):
         chrome_options = Options()
         if self.headless:

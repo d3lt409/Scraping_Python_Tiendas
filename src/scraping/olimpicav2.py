@@ -1,6 +1,8 @@
 from gzip import decompress
 import json
 import traceback
+
+import selenium
 from mail.send_email import send_email, erorr_msg
 from src.scraper.engine import CLICK, Engine
 from src.utils.util import crash_refresh_page, get_data
@@ -30,14 +32,14 @@ COLUMNS = ["Departamento", "Categoria", "Sub_categoria", "Nombre_producto", "Pre
 
 def init_page():
     time.sleep(5)
-    # form = engine.elements_wait_searh(
+    # form = engine.elements_wait_search(
     #     20, By.XPATH, "//input[contains(@id,'react-select-input-')]")
     # form[0].send_keys("BOGOTÁ, D.C.")
     # form[0].send_keys(Keys.ENTER)
     # form[1].send_keys("Bogotá, D.C.")
     # form[1].send_keys(Keys.ENTER)
 
-    engine.element_wait_searh(
+    engine.element_wait_search(
         10, By.XPATH, "//div[@class='pr0     flex'][div[@class='pa4 pointer vtex-store-drawer-0-x-openIconContainer']]").click()
     # driver.execute_script(CLICK,WebDriverWait(driver, 10).until(
     #     EC.presence_of_element_located(
@@ -50,16 +52,22 @@ def each_departments_cat():
     time.sleep(2)
 
     engine.element_wait_click(
-        25, By.XPATH, "//div[@class='pa4 pointer vtex-store-drawer-0-x-openIconContainer']")
-    cat_element_object = engine.elements_wait_searh(
-        20, By.XPATH, "//div[@class='olimpica-mega-menu-0-x-Level1Container']/a")
+        25, By.XPATH, "//div[contains(@class,'pa4 pointer vtex-store-drawer-0-x-openIconContainer')]")
+    cat_element_object = engine.elements_wait_search(
+        20, By.XPATH, "//div[contains(@class,'olimpica-mega-menu-0-x-second_level_menu')]")
     cat_sub_elements: dict[str, list[list[str]]] = {}
     for el in cat_element_object:
-        ActionChains(engine.driver).move_to_element(el).perform()
-        cat_sub_elements[el.text] = [
-            [ele.text, ele.get_attribute("href")] for ele in engine.elements_wait_searh(20, By.XPATH, "//div[@class='olimpica-mega-menu-0-x-Level2Container']//a")]
 
-    list_articles = []
+        el: WebElement
+        cat = el.find_element(By.XPATH, ".//h1")
+        sub_cat = el.find_element(
+            By.XPATH, ".//ul//h2/a")
+        links = el.find_elements(
+            By.XPATH, ".//ul//h3/a")
+        cat_sub_elements[cat.get_attribute("textContent")] = {
+            sub_cat.get_attribute("textContent"): [ele.get_attribute("href") for ele in links]}
+
+    # print(cat_sub_elements)
     row = engine.db.last_item_db()
     for cat, subs in cat_sub_elements.items():
         print(cat, row)
@@ -67,13 +75,14 @@ def each_departments_cat():
             continue
         if row and "categoria" in row:
             del row["categoria"]
-        for sub in subs:
+        for sub, links in subs.items():
             print(sub, row)
-            if row and "sub_categoria" in row and row["sub_categoria"] != sub[0]:
+            if row and "sub_categoria" in row and row["sub_categoria"] != sub:
                 continue
             if row and "sub_categoria" in row:
                 del row["sub_categoria"]
-            save_data(cat, *sub)
+            for link in links:
+                save_data(cat, sub, link)
 
 
 def save_data(cat, sub, link):
@@ -94,17 +103,21 @@ def save_data(cat, sub, link):
                 engine.driver.refresh()
                 time.sleep(3)
 
-        time.sleep(5)
         try:
+
             elementos_cargados()
+            esperar_carga()
+            time.sleep(6)
             extract_files(cat, sub, get_data(engine, Olimpica))
-            extract_files(cat, sub, get_data_require(engine))
+            extract_files(cat, sub, get_data_require(engine, cat))
             count += 1
 
+        except selenium.common.exceptions.StaleElementReferenceException as e:
+            continue
         except TimeoutException:
-            traceback.print_exception(*sys.exc_info())
+            # traceback.print_exception(*sys.exc_info())
             try:
-                engine.element_wait_searh(
+                engine.element_wait_search(
                     3, By.XPATH, "//div[@class='vtex-search-result-3-x-searchNotFoundInfo flex flex-column ph9']")
                 break
             except TimeoutException:
@@ -112,7 +125,7 @@ def save_data(cat, sub, link):
                 time.sleep(2)
 
 
-def get_data_require(engine):
+def get_data_require(engine, cat):
     data_sql = engine.db.consulta_sql([Olimpica.nombre_producto],
                                       [Olimpica.fecha_resultados == datetime.now().date()])
     nombre_sql = set(
@@ -122,47 +135,62 @@ def get_data_require(engine):
         if req.response:
             resp = req.response
             data = {}
-            json_data = []
+            # json_data = []
             if resp.headers.get("content-type", None) and 'application/json' in resp.headers.get("content-type"):
                 try:
                     data = json.loads(resp.body)
                 except:
                     try:
                         data = json.loads(decompress(resp.body))
-                        # print(resp.body.decode(errors='ignore'))
                     except:
                         pass
                 try:
-                    if "data" in data and "productSearch" in data["data"]:
-                        json_data = data["data"]["productSearch"]["products"]
-                    elif "data" in data and "productsByIdentifier" in data["data"] \
-                            and "productName" in data["data"]["productsByIdentifier"][0]:
-                        json_data = data["data"]["productsByIdentifier"]
+                    if (
+                        # cat.lower() in resp.body.lower() and
+                            "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]):
+                        json_data.append(data["data"]["product"])
+                    # elif "data" in data and "productsByIdentifier" in data["data"] \
+                    #         and "productName" in data["data"]["productsByIdentifier"][0]:
+                    #     json_data = data["data"]["productsByIdentifier"]
+                    #     if json_data:
+                    #         nombre_data = set([product["productName"]
+                    #                            for product in json_data])
+                    #         if nombre_data.issubset(nombre_sql):
+                    #             continue
+                    #         else:
+                    #             return json_data
 
                 except TypeError:
                     pass
 
-                if json_data:
-                    nombre_data = set([product["productName"]
-                                      for product in json_data])
-                    if nombre_data.issubset(nombre_sql):
-                        continue
-                    else:
-                        break
-    return []
+                # if json_data:
+                #     nombre_data = set([product["productName"]
+                #                       for product in json_data])
+                #     if nombre_data.issubset(nombre_sql):
+                #         continue
+                #     else:
+                #         break
+    if len(json_data) > 0:
+        json_data = [product
+                     for product in json_data if product["productName"] not in nombre_sql]
+    #     nombre_data = set([product["productName"]
+    #                        for product in json_data])
+    #     if nombre_data.issubset(nombre_sql):
+    #         return []
+    #     else:
+        # return json_data
+    return json_data
 
 
 def extract_files(cat, sub, products: list):
     new_data = []
+    print(len(products))
     for product in products:
         categoria = cat
         sub_categoria = sub
         nombre_producto = product["productName"]
-        precio_bajo = product["priceRange"]["sellingPrice"]["lowPrice"]
-        precio_alto = product["priceRange"]["sellingPrice"]["lowPrice"]
-        if not precio_bajo or not precio_alto:
-            precio_bajo = product["priceRange"]["listPrice"]["lowPrice"]
-            precio_alto = product["priceRange"]["listPrice"]["lowPrice"]
+        precio_bajo = product["items"][0]["sellers"][0]["commertialOffer"]["Price"]
+        precio_alto = product["items"][0]["sellers"][0]["commertialOffer"]["Price"]
         cantidad, unidad = cant_uni(nombre_producto)
         precio_alto, precio_bajo = map(lambda x: float(
             x) if x else 0, [precio_alto, precio_bajo])
@@ -170,8 +198,9 @@ def extract_files(cat, sub, products: list):
             continue
         new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
                         "nombre_producto": nombre_producto, "precio_bajo": precio_bajo, "precio_alto": precio_alto, "cantidad": cantidad, "unidad": unidad})
-    print(new_data)
+
     if len(new_data) > 0:
+        print(new_data)
         engine.db.save_data(engine.db.engine, Olimpica, new_data)
 
 
@@ -179,10 +208,24 @@ def scroll_down(final):
 
     step = int(final*0.009)
     for val in range(0, final, step):
-        driver.execute_script(f"window.scrollTo(0, {val});")
+        engine.driver.execute_script(f"window.scrollTo(0, {val});")
+
+
+def esperar_carga():
+    document_state = engine.driver.execute_script("return document.readyState")
+    while document_state != "complete":
+        time.sleep(0.5)
+        document_state = engine.driver.execute_script(
+            "return document.readyState")
 
 
 def elementos_cargados():
+
+    final_height = engine.element_wait_search(
+        5, By.XPATH, "//div[@class='vtex-flex-layout-0-x-flexColChild vtex-flex-layout-0-x-flexColChild--search-result-content pb0']")
+    engine.driver.execute_script(
+        f"window.scrollTo(0, {final_height.location['y'] + final_height.size['height']});")
+
     WebDriverWait(engine.driver, 10).until(EC.presence_of_element_located(
         (By.XPATH, "//span[@class='vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body']")))
 
@@ -215,7 +258,7 @@ def select_name(element: WebElement):
 def cant_uni(nom_cant: str):
     try:
         cant = re.findall("(?<= )\d+[,\d+]*",
-                          nom_cant.replace("  ", " "))
+                          nom_cant.replace("  ", " "))  # (?<=(?:X|x))\s?\d+
         if len(cant) == 0:
             cant = re.search("(?<=X)\d+", nom_cant.replace("  ", " ")).group(0)
             return cant, 'UN'
@@ -248,16 +291,17 @@ def precio_normal(element: WebElement):
 def main():
     global engine
     engine = Engine(current_url_olimpica, Olimpica)
+    engine.implicitly_wait(20)
     engine.db.model.metadata.create_all(engine.db.engine)
     lenth["Cantidad"] = engine.db.consulta_sql_query_one(
         "select count(*) as count from Olimpica;")["count"]
-    init_page()
-    time.sleep(2)
+    # init_page()
+    # time.sleep(2)
     engine.driver.execute_script(
         "window.scrollTo(0, document.body.scrollHeight)")
 
     each_departments_cat()
-    send_email("Olimipica", lenth)
+    # send_email("Olimipica", lenth)
     engine.close()
 
 
