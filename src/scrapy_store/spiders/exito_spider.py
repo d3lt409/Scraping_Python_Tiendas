@@ -1,44 +1,50 @@
-import re
-import os
 import scrapy
-from scrapy.http.response import Response
-from scrapy.selector import Selector
-from scrapy.http import Response
-import time
-
 from scrapy_splash import SplashRequest
-from .constants import *
+from scrapy_splash.response import SplashResponse
+from scrapy.http.response.html import HtmlResponse
+import json
 
-URL = "https://www.exito.com"
-TIME = 20
 
-
-class MySpider(scrapy.Spider):
-    name = 'exito-spider'
-    start_urls = ["https://www.exito.com/mercado/lacteos-huevos-y-refrigerados/huevos?page=3"]
+class ExitoSpider(scrapy.Spider):
+    name = "exito"
+    start_urls = [
+        "https://www.exito.com/moda-y-accesorios/arkitect-francesca-miranda"]
 
     def start_requests(self):
         for url in self.start_urls:
-            yield SplashRequest(url, self.parse, args={'wait': 10})
+            yield SplashRequest(url, self.parse, endpoint='render.har', args={'wait': 2, 'response_body': 1})
 
-    def parse(self, response:Response):
-        # Aquí puedes usar expresiones XPath o CSS para extraer datos de la página
-        # Ejemplo: obtener el título de la página
-        # elements = engine.elements_wait_searh(10,By.CSS_SELECTOR, "div#gallery-layout-container > div > section > a > article")
-        scroll_script = """
-        function main(splash)
-            splash:scroll_position(0, splash:jsfunc("function() { return document.body.scrollHeight / 2; }"))
-            splash:wait(3)
-            splash:scroll_position(0, document.body.scrollHeight)
-            splash:wait(2)
-            return splash:html()
-        end
-        """
-        yield SplashRequest(response.url, self.parse_result,
-                            args={'lua_source': scroll_script},  # Esperar 2 segundos después del scroll
-                            endpoint='execute')
-        
-    def parse_result(self, response:Response):
-        elements = response.css("div#gallery-layout-container > div > section > a > article")
-        for element in elements:
-            print(element)
+    def parse(self, response: SplashResponse):
+        # Extraer información de la pestaña "Network" usando el campo "body"
+        print(response)
+        # print(network_data)
+        # with open("out.json", 'w', encoding='utf-8') as fp:
+        #     fp.write(network_data)
+        # # Decodificar la información JSON que contiene los datos de la red
+        # network_data_json = json.loads(network_data)
+        # xhr_and_fetch_data = []
+        # for entry in network_data_json['log']['entries']:
+        #     request = entry['request']
+        #     resp = entry['response']
+
+        #     # Filtrar solo las solicitudes y respuestas XHR y Fetch
+        #     if request['method'] in ('GET') and 'xhr' in request['headers'].get('fetch', '').lower():
+        #         xhr_and_fetch_data.append({
+        #             'url': request['url'],
+        #             'method': request['method'],
+        #             'status': resp['status'],
+        #             'response_body': resp.get('content', {}).get('text', ''),
+        #         })
+        # for data in xhr_and_fetch_data:
+        #     print(data)
+        # # Aquí puedes utilizar selectores de Scrapy para extraer información
+        # # como lo hacías antes, sin embargo, el contenido será el generado por JavaScript.
+        # product_names = response.css(".product-name::text").extract()
+        # product_prices = response.css(".product-price::text").extract()
+
+        # # Aquí puedes procesar los datos como desees
+        # for name, price in zip(product_names, product_prices):
+        #     yield {
+        #         'name': name,
+        #         'price': price,
+        #     }
