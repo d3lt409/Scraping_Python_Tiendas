@@ -107,7 +107,6 @@ def save_data(cat, sub, link):
 
             elementos_cargados()
             esperar_carga()
-            time.sleep(6)
             extract_files(cat, sub, get_data(engine, Olimpica))
             extract_files(cat, sub, get_data_require(engine, cat))
             count += 1
@@ -125,6 +124,16 @@ def save_data(cat, sub, link):
                 time.sleep(2)
 
 
+# Función para extraer datos
+def scrape_data(engine: Engine):
+    for request in engine.driver.requests:
+        if request.response:
+            if request.response.headers['Content-Type'] == 'application/json':
+                json_data = json.loads(request.response.body)
+                # extraer y procesar datos
+                print(json_data['products'])
+
+
 def get_data_require(engine, cat):
     data_sql = engine.db.consulta_sql([Olimpica.nombre_producto],
                                       [Olimpica.fecha_resultados == datetime.now().date()])
@@ -132,6 +141,7 @@ def get_data_require(engine, cat):
         [product for sub_data in data_sql for product in sub_data])
     json_data = []
     for req in engine.driver.requests:
+
         if req.response:
             resp = req.response
             data = {}
@@ -149,36 +159,14 @@ def get_data_require(engine, cat):
                         # cat.lower() in resp.body.lower() and
                             "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]):
                         json_data.append(data["data"]["product"])
-                    # elif "data" in data and "productsByIdentifier" in data["data"] \
-                    #         and "productName" in data["data"]["productsByIdentifier"][0]:
-                    #     json_data = data["data"]["productsByIdentifier"]
-                    #     if json_data:
-                    #         nombre_data = set([product["productName"]
-                    #                            for product in json_data])
-                    #         if nombre_data.issubset(nombre_sql):
-                    #             continue
-                    #         else:
-                    #             return json_data
 
                 except TypeError:
                     pass
 
-                # if json_data:
-                #     nombre_data = set([product["productName"]
-                #                       for product in json_data])
-                #     if nombre_data.issubset(nombre_sql):
-                #         continue
-                #     else:
-                #         break
     if len(json_data) > 0:
         json_data = [product
                      for product in json_data if product["productName"] not in nombre_sql]
-    #     nombre_data = set([product["productName"]
-    #                        for product in json_data])
-    #     if nombre_data.issubset(nombre_sql):
-    #         return []
-    #     else:
-        # return json_data
+
     return json_data
 
 
@@ -292,6 +280,7 @@ def main():
     global engine
     engine = Engine(current_url_olimpica, Olimpica)
     engine.implicitly_wait(20)
+    esperar_carga()
     engine.db.model.metadata.create_all(engine.db.engine)
     lenth["Cantidad"] = engine.db.consulta_sql_query_one(
         "select count(*) as count from Olimpica;")["count"]

@@ -94,7 +94,7 @@ def internet_on():
 
 def get_data(engine, model):
 
-    time.sleep(4)
+    # time.sleep(4)
     # Obtener los registros de rendimiento
     logs_raw = engine.driver.get_log("performance")
     logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(

@@ -10,6 +10,7 @@ h11
 html5lib
 idna
 lxml
+keyring==23.13.1
 numpy
 openpyxl
 outcome
@@ -25,11 +26,13 @@ selenium
 six
 sniffio
 sortedcontainers
+sqlalchemy
+selenium-wire==5.1.0
 tqdm
 trio
 trio-websocket
 urllib3
-webdriver-manager
+webdriver-manager==4.0.0
 webencodings
 wsproto
 XlsxWriter

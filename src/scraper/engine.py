@@ -48,6 +48,8 @@ class Engine:
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--ignore-certificate-errors")
+        # chrome_options.add_argument("--allow-running-insecure-content")
+        # chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("force-device-scale-factor=0.75")
         chrome_options.add_argument("high-dpi-support=0.75")
         chrome_options.set_capability(
@@ -76,7 +78,7 @@ class Engine:
         while not internet_on():
             continue
         self._driver.maximize_window()
-        self._driver.get(self.current_url)
+        self._driver.get(self._current_url)
 
     def ready_document(self):
         WebDriverWait(self._driver, 60).until(
