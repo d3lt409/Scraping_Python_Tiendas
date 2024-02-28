@@ -59,21 +59,23 @@ def each_departments_cat():
     for el in cat_element_object:
 
         el: WebElement
-        cat = el.find_element(By.XPATH, ".//h1")
-        sub_cats_object = el.find_element(
+        cat = el.find_element(By.XPATH, ".//h1").get_attribute("textContent")
+        sub_cats_object = el.find_elements(
             By.XPATH, ".//ul[@class= 'olimpica-mega-menu-0-x-second_level_list']")
+        sub_cats = {}
         for sub_cat_object in sub_cats_object:
             sub_cat = sub_cat_object.find_element(
                 By.XPATH, ".//h2/a")
-            links = el.find_elements(
+            links = sub_cat_object.find_elements(
                 By.XPATH, ".//h3/a")
-            cat_sub_elements[cat.get_attribute("textContent")] = {
-                sub_cat.get_attribute("textContent"): [ele.get_attribute("href") for ele in links]}
+            sub_cats[sub_cat.get_attribute("textContent")] = [
+                ele.get_attribute("href") for ele in links]
+        cat_sub_elements[cat] = sub_cats
 
-    # print(cat_sub_elements)
-    print(cat_sub_elements.keys(), [el.keys()
-          for _, el in cat_sub_elements.items()])
-    exit()
+    # for cat, sub in cat_sub_elements.items():
+    #     print(cat)
+    #     print(sub.keys())
+    # exit()
     for cat, subs in cat_sub_elements.items():
         print(cat, row)
         if row and "categoria" in row and row["categoria"] != cat:
