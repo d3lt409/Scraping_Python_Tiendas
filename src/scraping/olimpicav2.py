@@ -17,8 +17,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
+from urllib3.exceptions import ProtocolError
 
 import sys
 from src.models.models import Olimpica
@@ -285,20 +284,37 @@ def precio_normal(element: WebElement):
 
 def main():
     global engine
-    engine = Engine(current_url_olimpica, Olimpica)
-    engine.implicitly_wait(20)
-    esperar_carga()
-    engine.db.model.metadata.create_all(engine.db.engine)
-    lenth["Cantidad"] = engine.db.consulta_sql_query_one(
-        "select count(*) as count from Olimpica;")["count"]
-    # init_page()
-    # time.sleep(2)
-    engine.driver.execute_script(
-        "window.scrollTo(0, document.body.scrollHeight)")
+    while True:
+        try:
+            engine = Engine(current_url_olimpica, Olimpica)
+            engine.implicitly_wait(20)
+            esperar_carga()
+            engine.db.model.metadata.create_all(engine.db.engine)
+            lenth["Cantidad"] = engine.db.consulta_sql_query_one(
+                "select count(*) as count from Olimpica;")["count"]
+            # init_page()
+            # time.sleep(2)
+            engine.driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight)")
 
-    each_departments_cat()
-    # send_email("Olimipica", lenth)
-    engine.close()
+            each_departments_cat()
+            # send_email("Olimipica", lenth)
+            engine.close()
+        except (WebDriverException, ProtocolError) as e:
+            print("Error ", e)
+            if engine:
+                engine.close()
+            # Espera un momento para permitir que el navegador anterior se cierre completamente
+            time.sleep(5)
+            # Crea una nueva instancia del driver para reiniciar el navegador
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            break
+        finally:
+            print("Cerrada")
+            if engine:
+                engine.close()
+            break
 
 
 row = None

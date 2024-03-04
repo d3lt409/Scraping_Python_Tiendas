@@ -4,7 +4,7 @@ import sys
 import time
 from typing import TypeVar
 
-from seleniumwire import webdriver
+from seleniumwire.undetected_chromedriver import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -54,12 +54,31 @@ class Engine:
         chrome_options.add_argument("high-dpi-support=0.75")
         chrome_options.set_capability(
             'goog:loggingPrefs', {'performance': 'ALL'})
-        chrome_options.add_experimental_option("prefs", {
-            "profile.managed_default_content_settings.images": 2,
-            "stylesheet": 2
-        })
+        # chrome_options.experimental_options["prefs"] = {
+        #     "profile.managed_default_content_settings.images": 2,
+        #     "stylesheet": 2
+        # }
+        PROXY = 'http://61.28.233.217:3128'
+
+        seleniumwire_options = {
+            'disable_encoding': True,
+            'images': False,
+            'stylesheet': False,
+            'request_block_rules': [
+                {
+                    'resource_type': 'image'
+                },
+                {
+                    'resource_type': 'stylesheet'
+                }
+            ]
+
+        }
+        options = {
+
+        }
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
-                                  options=chrome_options)
+                                  options=chrome_options, seleniumwire_options=seleniumwire_options)
         return driver
 
     def _get_driver(self):
