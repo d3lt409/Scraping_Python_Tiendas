@@ -49,13 +49,7 @@ class Engine:
                                           options=options.option)
             return driver
         else:
-            from browsermobproxy import Server
-            self.server = Server(os.path.join(
-                os.getcwd(), "proxy/browsermob-proxy-2.1.4/bin/browsermob-proxy.bat"), options={"add_opens": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED"})
-            self.server.start()
-            self.proxy = self.server.create_proxy()
-            self.profile = webdriver.FirefoxProfile()
-            self.profile.set_proxy(self.proxy.selenium_proxy())
+
             if selenium_wire:
                 from seleniumwire import webdriver
                 seleniumwire_options = options.create_wire_options()
@@ -63,6 +57,13 @@ class Engine:
                                            options=options.option, seleniumwire_options=seleniumwire_options)
             else:
                 from selenium import webdriver
+                from browsermobproxy import Server
+                self.server = Server(os.path.join(
+                    os.getcwd(), "proxy/browsermob-proxy-2.1.4/bin/browsermob-proxy.bat"), options={"add_opens": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED"})
+                self.server.start()
+                self.proxy = self.server.create_proxy()
+                self.profile = webdriver.FirefoxProfile()
+                self.profile.set_proxy(self.proxy.selenium_proxy())
                 driver = webdriver.Firefox(firefox_profile=self.profile,
                                            options=options.option)
                 self.proxy.new_har("file_name", options={
