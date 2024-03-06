@@ -15,7 +15,7 @@ import re
 # To call when the code runs the webscrapping
 from mail.send_email import send_email, erorr_msg, PASSWORD
 from src.models.models import D1
-from src.scraper.engine import CLICK
+from src.scraper.engine.constants import CLICK
 from src.utils.util import init_scraping
 
 

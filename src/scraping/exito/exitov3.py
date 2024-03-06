@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 import sqlalchemy
 
-from src.scraper.engine import Engine
+from src.scraper.engine.engine import Engine
 from src.scraping.exito.constants.constants_exitov3 import *
 from src.models.models import Exito
 import traceback

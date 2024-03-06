@@ -1,5 +1,7 @@
 from datetime import datetime
 import json
+import re
+import tempfile
 import time
 import os
 import sys
@@ -122,17 +124,6 @@ def get_data(engine, model):
             data = json.loads(json_response["body"])
             if "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]:
                 json_data.append(data["data"]["product"])
-            # elif "data" in data and "productsByIdentifier" in data["data"] \
-            #         and "productName" in data["data"]["productsByIdentifier"][0]:
-            #     json_data = data["data"]["productsByIdentifier"]
-            #     if json_data:
-
-            #         nombre_data = set([product["productName"]
-            #                            for product in json_data])
-            #         if nombre_data.issubset(nombre_sql):
-            #             continue
-            #         else:
-            #             return json_data
 
         except Exception as e:
             pass
@@ -142,3 +133,52 @@ def get_data(engine, model):
                      for product in json_data if product["productName"] not in nombre_sql]
 
     return json_data
+
+
+def get_data_firefox(engine, model, proxi):
+    # Obtener la ruta del archivo de registro de Firefox
+    logs_path = os.path.join(tempfile.gettempdir(), 'geckodriver.log')
+
+    # Leer el contenido del archivo de registro
+    with open(logs_path, 'r', encoding='utf-8') as log_file:
+        log_content = log_file.read()
+
+    # Extraer los logs JSON del contenido del archivo
+    json_logs = re.findall(r'\{.*?\}', log_content)
+
+    # Cargar los logs JSON como diccionarios de Python
+    logs = [json.loads(log) for log in json_logs]
+
+    # Filtrar los logs para encontrar las respuestas JSON
+    def log_filter(log_):
+        if "response" in log_:
+            return "json" in log_["response"]["mimeType"]
+        return False
+
+    json_logs = list(filter(log_filter, logs))
+
+    json_data = []
+    data_sql = engine.db.consulta_sql([model.nombre_producto], [
+                                      model.fecha_resultados == datetime.now().date()])
+    nombre_sql = set(
+        [product for sub_data in data_sql for product in sub_data])
+
+    for log in json_logs:
+        try:
+            data = json.loads(log["response"]["body"]["decoded"])
+            if "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]:
+                json_data.append(data["data"]["product"])
+        except Exception as e:
+            pass
+
+    if len(json_data) > 0:
+        json_data = [
+            product for product in json_data if product["productName"] not in nombre_sql]
+
+    return json_data
+
+
+def get_data_firefoxV2(engine, model, proxy):
+    proxy.wait_for_traffic_to_stop(1, 60)
+    for ent in proxy.har['log']['entries']:
+        print(ent)

@@ -3,14 +3,12 @@ import json
 import traceback
 
 import selenium
-from mail.send_email import send_email, erorr_msg
-from src.scraper.engine import CLICK, Engine
-from src.utils.util import crash_refresh_page, get_data
+from src.scraper.engine.constants import FIREFOX
+from src.scraper.engine.engine import Engine
 from datetime import datetime
 import sys
 import time
-from sqlalchemy.exc import OperationalError
-import pandas as pd
+
 import re
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
@@ -21,6 +19,7 @@ from urllib3.exceptions import ProtocolError
 
 import sys
 from src.models.models import Olimpica
+from src.utils.util import get_data, get_data_firefox, get_data_firefoxV2
 sys.path.append(".")
 
 FILENAME = "olimpica_precios.xlsx"
@@ -75,6 +74,7 @@ def each_departments_cat():
     #     print(cat)
     #     print(sub.keys())
     # exit()
+    row = engine.db.last_item_db()
     for cat, subs in cat_sub_elements.items():
         print(cat, row)
         if row and "categoria" in row and row["categoria"] != cat:
@@ -113,8 +113,9 @@ def save_data(cat, sub, link):
 
             elementos_cargados()
             esperar_carga()
-            extract_files(cat, sub, get_data(engine, Olimpica))
-            extract_files(cat, sub, get_data_require(engine, cat))
+            get_data_firefoxV2(engine, Olimpica, engine.proxy)
+            # extract_files(cat, sub, get_data_firefox(engine, Olimpica))
+            # extract_files(cat, sub, get_data_require(engine, cat))
             count += 1
 
         except selenium.common.exceptions.StaleElementReferenceException as e:
@@ -284,9 +285,10 @@ def precio_normal(element: WebElement):
 
 def main():
     global engine
+    engine = None
     while True:
         try:
-            engine = Engine(current_url_olimpica, Olimpica)
+            engine = Engine(current_url_olimpica, Olimpica, browser=FIREFOX)
             engine.implicitly_wait(20)
             esperar_carga()
             engine.db.model.metadata.create_all(engine.db.engine)
@@ -301,7 +303,7 @@ def main():
             # send_email("Olimipica", lenth)
             engine.close()
         except (WebDriverException, ProtocolError) as e:
-            print("Error ", e)
+            traceback.print_exception(*sys.exc_info())
             if engine:
                 engine.close()
             # Espera un momento para permitir que el navegador anterior se cierre completamente

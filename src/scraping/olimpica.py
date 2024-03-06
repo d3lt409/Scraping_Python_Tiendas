@@ -1,5 +1,5 @@
 from mail.send_email import send_email, erorr_msg
-from src.scraper.engine import CLICK, Engine
+from src.scraper.engine.engine import CLICK, Engine
 from src.utils.util import crash_refresh_page
 from datetime import datetime
 import sys
