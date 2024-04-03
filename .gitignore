@@ -17,3 +17,4 @@ shutdown.py
 *Precios.sqlite
 .env
 venv/
+.venv/
