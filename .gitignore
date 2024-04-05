@@ -17,3 +17,4 @@ shutdown.py
 *.sqlite
 .env
 venv/
+.venv/
