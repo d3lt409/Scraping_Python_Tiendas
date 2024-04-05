@@ -19,7 +19,7 @@ from urllib3.exceptions import ProtocolError
 
 import sys
 from src.models.models import Olimpica
-from src.utils.util import get_data, get_data_firefox, get_data_firefoxV2
+# from src.utils.util import get_data, get_data_firefox, get_data_firefoxV2
 sys.path.append(".")
 
 FILENAME = "olimpica_precios.xlsx"
@@ -113,8 +113,9 @@ def save_data(cat, sub, link):
 
             elementos_cargados()
             esperar_carga()
-            get_data_firefoxV2(engine, Olimpica, engine.proxy)
-            # extract_files(cat, sub, get_data_firefox(engine, Olimpica))
+            # get_data_firefoxV2(engine, Olimpica, engine.proxy)
+            extract_files(cat, sub, get_data_require(engine))
+            extract_files(cat, sub, get_data(engine, Olimpica))
             # extract_files(cat, sub, get_data_require(engine, cat))
             count += 1
 
@@ -141,40 +142,122 @@ def scrape_data(engine: Engine):
                 print(json_data['products'])
 
 
-def get_data_require(engine, cat):
+def get_data(engine, model):
+
+    # time.sleep(4)
+    # Obtener los registros de rendimiento
+    logs_raw = engine.driver.get_log("performance")
+    logs = [json.loads(lr["message"])["message"] for lr in logs_raw if "Network.response" in json.loads(
+        lr["message"])["message"]["method"]]
+
+    # Filtrar los logs para encontrar las respuestas JSON
+    def log_filter(log_):
+        if "response" in log_["params"]:
+            return "json" in log_["params"]["response"]["mimeType"]
+        return False
+
+    json_logs = filter(log_filter, logs)
+
+    json_data = []
+    data_sql = engine.db.consulta_sql([model.nombre_producto],
+                                      [model.fecha_resultados == datetime.now().date()])
+    nombre_sql = set(
+        [product for sub_data in data_sql for product in sub_data])
+    for i, log in enumerate(json_logs):
+        request_id = log["params"]["requestId"]
+        # json_data = []
+        try:
+            json_response = engine.driver.execute_cdp_cmd(
+                "Network.getResponseBody", {"requestId": request_id})
+            data = json.loads(json_response["body"])
+            try:
+                if "data" in data and "productSearch" in data["data"]:
+                    json_data += data["data"]["productSearch"]["products"]
+                elif "data" in data and "productsByIdentifier" in data["data"] \
+                        and "productName" in data["data"]["productsByIdentifier"][0]:
+                    json_data += data["data"]["productsByIdentifier"]
+
+            except TypeError:
+                pass
+
+        except Exception as e:
+            pass
+    if len(json_data) > 0:
+
+        json_data = [product
+                     for product in json_data if product["productName"] not in nombre_sql]
+
+    return json_data
+
+
+def get_data_require(engine):
     data_sql = engine.db.consulta_sql([Olimpica.nombre_producto],
                                       [Olimpica.fecha_resultados == datetime.now().date()])
     nombre_sql = set(
         [product for sub_data in data_sql for product in sub_data])
     json_data = []
     for req in engine.driver.requests:
-
         if req.response:
             resp = req.response
             data = {}
-            # json_data = []
             if resp.headers.get("content-type", None) and 'application/json' in resp.headers.get("content-type"):
                 try:
                     data = json.loads(resp.body)
                 except:
                     try:
                         data = json.loads(decompress(resp.body))
+                        # print(resp.body.decode(errors='ignore'))
                     except:
                         pass
                 try:
-                    if (
-                        # cat.lower() in resp.body.lower() and
-                            "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]):
-                        json_data.append(data["data"]["product"])
+                    if "data" in data and "productSearch" in data["data"]:
+                        json_data += data["data"]["productSearch"]["products"]
+                    elif "data" in data and "productsByIdentifier" in data["data"] \
+                            and "productName" in data["data"]["productsByIdentifier"][0]:
+                        json_data += data["data"]["productsByIdentifier"]
 
                 except TypeError:
                     pass
-
     if len(json_data) > 0:
+
         json_data = [product
                      for product in json_data if product["productName"] not in nombre_sql]
-
     return json_data
+
+# def get_data_require(engine, cat):
+#     data_sql = engine.db.consulta_sql([Olimpica.nombre_producto],
+#                                       [Olimpica.fecha_resultados == datetime.now().date()])
+#     nombre_sql = set(
+#         [product for sub_data in data_sql for product in sub_data])
+#     json_data = []
+#     for req in engine.driver.requests:
+
+#         if req.response:
+#             resp = req.response
+#             data = {}
+#             # json_data = []
+#             if resp.headers.get("content-type", None) and 'application/json' in resp.headers.get("content-type"):
+#                 try:
+#                     data = json.loads(resp.body)
+#                 except:
+#                     try:
+#                         data = json.loads(decompress(resp.body))
+#                     except:
+#                         pass
+#                 try:
+#                     if (
+#                         # cat.lower() in resp.body.lower() and
+#                             "data" in data and "product" in data["data"] and "productName" in data["data"]["product"]):
+#                         json_data.append(data["data"]["product"])
+
+#                 except TypeError:
+#                     pass
+
+#     if len(json_data) > 0:
+#         json_data = [product
+#                      for product in json_data if product["productName"] not in nombre_sql]
+
+#     return json_data
 
 
 def extract_files(cat, sub, products: list):
@@ -185,7 +268,7 @@ def extract_files(cat, sub, products: list):
         sub_categoria = sub
         nombre_producto = product["productName"]
         precio_bajo = product["items"][0]["sellers"][0]["commertialOffer"]["Price"]
-        precio_alto = product["items"][0]["sellers"][0]["commertialOffer"]["Price"]
+        precio_alto = product["items"][0]["sellers"][0]["commertialOffer"]["PriceWithoutDiscount"]
         cantidad, unidad = cant_uni(nombre_producto)
         precio_alto, precio_bajo = map(lambda x: float(
             x) if x else 0, [precio_alto, precio_bajo])
@@ -288,7 +371,7 @@ def main():
     engine = None
     while True:
         try:
-            engine = Engine(current_url_olimpica, Olimpica, browser=FIREFOX)
+            engine = Engine(current_url_olimpica, Olimpica, wire_requests=True)
             engine.implicitly_wait(20)
             esperar_carga()
             engine.db.model.metadata.create_all(engine.db.engine)
