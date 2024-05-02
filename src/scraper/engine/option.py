@@ -27,6 +27,8 @@ class Option:
             options.add_argument('--no-sandbox')
             options.add_argument("--enable-automation")
             options.add_argument('--disable-dev-shm-usage')
+            options.add_argument("--disable-proxy-certificate-handler")
+            options.add_argument("--disable-content-security-policy")
             options.add_argument("--dns-prefetch-disable")
             options.add_argument('--disable-gpu')
             options.add_argument("--log-level=3")
