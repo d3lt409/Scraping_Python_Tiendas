@@ -10,7 +10,7 @@ h11
 html5lib
 idna
 lxml
-keyring==23.13.1
+keyring
 numpy
 openpyxl
 outcome
@@ -27,7 +27,7 @@ six
 sniffio
 sortedcontainers
 sqlalchemy
-selenium-wire==5.1.0
+selenium-wire
 tqdm
 trio
 trio-websocket
