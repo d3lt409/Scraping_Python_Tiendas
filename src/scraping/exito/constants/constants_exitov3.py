@@ -1,12 +1,12 @@
 XPATH_CATEGORY_BUTTON = "//button[@data-fs-menu-container='true']"
-XPATH_LIST_CATEGORY_LI = "//section[2]//li[contains(@class,'Link_link-container__C_KEm')]"
+XPATH_LIST_CATEGORY_LI = "//section[2]//li[contains(@class,'Link_link-container__')]"
 
-XPATH_CATEGORY_CONTAINER = "//li[@class='SubMenu_subsection-item__TD0at']"
+XPATH_CATEGORY_CONTAINER = "//li[contains(@class,'SubMenu_subsection-item__')]"
 #each cat container 
 XPATH_NAME_CATEGORY = ".//div//b"
-XPATH_SUBCATEGORY_LINKS = ".//ul//a[@class='link_fs-link__6oAwa']"
+XPATH_SUBCATEGORY_LINKS = ".//ul//a[contains(@class,'link_fs-link__')]"
 
-XPATH_LIST_CATEGORY_LI_VERIFY = "//section[2]//li[contains(@class,'Link_link-container__C_KEm')]"
+XPATH_LIST_CATEGORY_LI_VERIFY = "//section[2]//li[contains(@class,'Link_link-container__')]"
 XPATH_LIST_SUBVCAT_VERIFY = "//p[contains(@id,'Categorías-nivel3-') and text()!='']"
 
 #Elements XPATH

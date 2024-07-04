@@ -28,8 +28,8 @@ sys.path.append(".")
 
 # from mail.send_email import send_email,erorr_msg
 
-# DATE = datetime.now()
-DATE = datetime(2024, 2, 24)
+DATE = datetime.now()
+# DATE = datetime(2024, 6, 14)
 
 
 def process_browser_log_entry(entry):
@@ -155,23 +155,29 @@ def get_data_require(engine):
 def extract_files(cat, sub, products: list):
     new_data = []
     for product in products:
-        categoria = cat
-        sub_categoria = sub
-        nombre_producto = product["name"]
-        precio_bajo = product["offers"]["offers"][0]["price"]
-        precio_alto = product["offers"]["offers"][0]["price"]
-        if not precio_bajo:
-            precio_bajo = product["offers"]["lowPrice"]
-        if not precio_alto:
-            precio_alto = product["offers"]["highPrice"] or precio_bajo
-        cantidad, unidad = cant_uni(nombre_producto)
-        new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
-                        "nombre_producto": nombre_producto, "precio_bajo": precio_bajo,
-                         "precio_alto": precio_alto, "cantidad": cantidad,
-                         "unidad": unidad,
-                         "fecha_resultados": DATE.date(),
-                         "hora_resultados": DATE.time()
-                         })
+        try:
+            categoria = cat
+            sub_categoria = sub
+            nombre_producto = product["name"]
+            precio_alto = product["sellers"][0]["commertialOffer"]["PriceWithoutDiscount"] if len(product["sellers"]) > 0 \
+                    else product["offers"]["offers"][0]["listPrice"]
+            if not precio_alto:
+                continue
+            precio_bajo = product["offers"]["lowPrice"] if "lowPrice" in product["offers"] else precio_alto
+            if not precio_bajo:
+                precio_bajo = product["offers"]["lowPrice"]
+            cantidad, unidad = cant_uni(nombre_producto)
+            new_data.append({"categoria": categoria, "sub_categoria": sub_categoria,
+                            "nombre_producto": nombre_producto, "precio_bajo": precio_bajo,
+                                "precio_alto": precio_alto, "cantidad": cantidad,
+                                "unidad": unidad,
+                                "fecha_resultados": DATE.date(),
+                                "hora_resultados": DATE.time()
+                                })
+        except Exception as e:
+            print(nombre_producto)
+            traceback.print_exception(*sys.exc_info())
+            e.with_traceback()
     # print(new_data)
     return new_data
 
@@ -355,6 +361,8 @@ def cant_uni(nom_cant: str):
 
 
 def iterate_cat_sub(links: dict, res: dict, engine: Engine):
+    global last_link
+    print(links)
     for cat, sub_dict in links.items():
         if res and cat != res.get("categoria"):
             continue
@@ -399,7 +407,9 @@ def iterate_cat_sub(links: dict, res: dict, engine: Engine):
 
 
 def main():
+    global last_link
     engine = None
+    last_link = ""
     while True:
         try:
             engine = Engine("https://www.exito.com", Exito)

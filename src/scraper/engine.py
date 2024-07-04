@@ -64,7 +64,7 @@ class Engine:
         return self._driver
 
     def _get_current_url(self):
-        return self._current_url
+        return self._driver.current_url
 
     def _set_current_url(self, url):
         self._current_url = url
@@ -76,7 +76,7 @@ class Engine:
         while not internet_on():
             continue
         self._driver.maximize_window()
-        self._driver.get(self.current_url)
+        self._driver.get(self._current_url)
 
     def ready_document(self):
         WebDriverWait(self._driver, 60).until(
